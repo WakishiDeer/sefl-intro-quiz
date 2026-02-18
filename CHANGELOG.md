@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 
 ### Added
 
+- **ロビー復帰機能**: クイズ終了後にルームを閉じずにロビーへ戻れる機能を追加。Host が結果画面で「ロビーに戻る」ボタンを押すと、全参加者がロビーフェーズに戻り、プロフィールを保持したまま次のクイズを生成可能に。`RoomAggregate.backToLobby()` メソッド追加、`room:back-to-lobby` イベント（C2S / S2C）追加、`ResultView` に「ロビーに戻る」ボタン追加
 - プロジェクト初期セットアップ（モノレポ構成）
 - PRD（プロダクト仕様書）作成 (`docs/prd.md`)
 - 技術設計書作成 (`docs/technical-design.md`)

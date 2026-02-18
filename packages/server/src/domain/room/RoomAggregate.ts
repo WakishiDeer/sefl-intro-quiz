@@ -254,6 +254,32 @@ export class RoomAggregate {
     }
 
     /**
+     * クイズ終了後にロビーフェーズへ戻す。
+     *
+     * - フェーズを "lobby" に変更
+     * - 全参加者の joinedAtQuestion を -1 にリセット（次回クイズで最初から回答可能に）
+     * - プロフィールは保持する（再入力不要ですぐにクイズ再生成可能）
+     *
+     * @throws RoomDomainError INVALID_PHASE — finished 以外のフェーズで呼ばれた場合
+     */
+    backToLobby(): void {
+        if (this.room.phase !== "finished") {
+            throw new RoomDomainError(
+                "INVALID_PHASE",
+                "ロビーに戻れるのはクイズ終了後のみです",
+            );
+        }
+
+        this.room.phase = "lobby";
+        this.room.lastActivityAt = Date.now();
+
+        // 全参加者の joinedAtQuestion をリセット
+        for (const p of this.room.participants.values()) {
+            p.joinedAtQuestion = -1;
+        }
+    }
+
+    /**
      * クイズ生成の前提条件を満たしているか。
      *
      * @param minParticipants - 最低参加者数

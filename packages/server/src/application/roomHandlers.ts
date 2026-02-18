@@ -436,6 +436,59 @@ export function registerRoomHandlers(
     });
 
     // ----------------------------------------------------------
+    // room:back-to-lobby——クイズ終了後にロビーへ戻る
+    // ----------------------------------------------------------
+    socket.on(C2S_EVENTS.ROOM_BACK_TO_LOBBY, () => {
+        try {
+            const session = socketSessions.get(socket.id);
+            if (!session) return;
+
+            const room = roomRepo.findByCode(session.roomCode);
+            if (!room) return;
+
+            const roomAgg = RoomAggregate.fromRoom(room);
+
+            // Host 権限チェック
+            if (!roomAgg.isHost(session.participantId)) {
+                socket.emit(S2C_EVENTS.ROOM_ERROR, {
+                    code: "NOT_HOST",
+                    message: "ホストのみがロビーに戻れます",
+                } satisfies RoomErrorPayload);
+                return;
+            }
+
+            // ドメインロジック: finished → lobby, joinedAtQuestion リセット
+            roomAgg.backToLobby();
+            roomRepo.save(roomAgg.toRoom());
+
+            // クイズデータを削除（次回生成のためにクリーンな状態に）
+            quizRepo.delete(session.roomCode);
+
+            // タイマーをキャンセル（念のため）
+            timerService.cancel(session.roomCode);
+
+            // 各クライアントに個別の RoomStateSync を送信（self 情報が異なるため）
+            const sockets = io.sockets.adapter.rooms.get(session.roomCode);
+            if (sockets) {
+                for (const sid of sockets) {
+                    const sess = socketSessions.get(sid);
+                    if (!sess) continue;
+                    const participant = roomAgg.getParticipant(sess.participantId);
+                    if (!participant) continue;
+                    const sync = buildRoomStateSync(roomAgg, quizRepo, participant);
+                    io.to(sid).emit(S2C_EVENTS.ROOM_BACK_TO_LOBBY, sync);
+                }
+            }
+
+            logger.info({ roomCode: session.roomCode }, "Room returned to lobby by host");
+
+            broadcastRoomList(io, roomRepo);
+        } catch (error) {
+            emitError(socket, error);
+        }
+    });
+
+    // ----------------------------------------------------------
     // profile:submit
     // ----------------------------------------------------------
     socket.on(C2S_EVENTS.PROFILE_SUBMIT, (payload: unknown) => {

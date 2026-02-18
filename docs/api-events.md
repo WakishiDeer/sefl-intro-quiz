@@ -19,6 +19,7 @@
 | `quiz:next-question` | Host | `{}` | 次の問題へ進む |
 | `question:answer` | Participant | `{ questionIndex: number, choiceIndex: number }` | 回答送信 |
 | `room:close` | Host | `{}` | ルームを閉じる |
+| `room:back-to-lobby` | Host | `{}` | クイズ終了後にロビーに戻る |
 | `room:list-subscribe` | Any | `{}` | ルーム一覧のリアルタイム購読開始 |
 | `room:list-unsubscribe` | Any | `{}` | ルーム一覧の購読解除 |
 | `room:check-nickname` | Any | `{ roomCode: string, nickname: string }` | ニックネーム重複事前チェック |
@@ -33,6 +34,7 @@
 | `room:participant-left` | Room | `{ nickname: string, participantCount: number }` | 参加者退出通知 |
 | `room:state-sync` | Sender | `RoomStateSync` | 途中参加者への全状態同期 |
 | `room:closed` | Room | `{}` | ルーム閉鎖通知 |
+| `room:back-to-lobby` | Room | `RoomStateSync` | ロビー復帰通知（各参加者に個別送信） |
 | `room:error` | Sender | `{ code: string, message: string }` | エラー通知 |
 | `profile:updated` | Room | `{ nickname: string, hasProfile: boolean }` | プロフィール更新通知 |
 | `quiz:generating` | Room | `{}` | クイズ生成開始 |
@@ -255,6 +257,14 @@ Host                Server              Participant
  │                    │                      │
  │←── quiz ───────────┤───→ quiz:finished ───→│
  │    :finished       │                      │
+ │                    │                      │
+ │  (ロビーに戻る or ルームを閉じる)          │
+ ├── room:back ──────→│                      │
+ │    -to-lobby       │                      │
+ │←── room:back ──────┤───→ room:back ───────→│
+ │    -to-lobby       │    -to-lobby          │
+ │    (RoomStateSync) │    (RoomStateSync)    │
+ │                    │                      │
  ├── room:close ─────→│                      │
  │←── room:closed ────┤───→ room:closed ─────→│
 ```

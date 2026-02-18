@@ -268,6 +268,65 @@ describe("RoomAggregate", () => {
     });
 
     // ----------------------------------------------------------
+    // ロビー復帰
+    // ----------------------------------------------------------
+
+    describe("backToLobby", () => {
+        it("finished フェーズからロビーに戻れる", () => {
+            room.changePhase("finished");
+            room.backToLobby();
+            expect(room.phase).toBe("lobby");
+        });
+
+        it("全参加者の joinedAtQuestion が -1 にリセットされる", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            room.changePhase("playing");
+            const late = room.addParticipant("Late", "socket-late", 3);
+            expect(late.joinedAtQuestion).toBe(4);
+
+            room.changePhase("finished");
+            room.backToLobby();
+
+            const data = room.toRoom();
+            for (const p of data.participants.values()) {
+                expect(p.joinedAtQuestion).toBe(-1);
+            }
+        });
+
+        it("プロフィールが保持される", () => {
+            const data = room.toRoom();
+            room.updateProfile(data.hostId, dummyProfile);
+            room.changePhase("finished");
+            room.backToLobby();
+
+            const host = room.getParticipant(data.hostId);
+            expect(host?.profile).toEqual(dummyProfile);
+        });
+
+        it("finished 以外のフェーズで呼ぶとエラーをスローする", () => {
+            // lobby
+            expect(() => room.backToLobby()).toThrow(RoomDomainError);
+            try {
+                room.backToLobby();
+                expect.fail("should have thrown");
+            } catch (e) {
+                expect(e).toBeInstanceOf(RoomDomainError);
+                expect((e as RoomDomainError).code).toBe("INVALID_PHASE");
+            }
+        });
+
+        it("playing フェーズで呼ぶとエラーをスローする", () => {
+            room.changePhase("playing");
+            expect(() => room.backToLobby()).toThrow(RoomDomainError);
+        });
+
+        it("generating フェーズで呼ぶとエラーをスローする", () => {
+            room.changePhase("generating");
+            expect(() => room.backToLobby()).toThrow(RoomDomainError);
+        });
+    });
+
+    // ----------------------------------------------------------
     // クイズ生成判定
     // ----------------------------------------------------------
 

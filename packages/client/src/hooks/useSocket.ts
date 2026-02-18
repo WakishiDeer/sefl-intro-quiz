@@ -20,6 +20,7 @@ import type {
     QuestionRevealPayload,
     QuizFinishedPayload,
     RoomErrorPayload,
+    RoomStateSync,
 } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { useQuizStore } from "../stores/useQuizStore.js";
@@ -125,6 +126,18 @@ export function useSocket(): void {
             navigate("/");
         };
 
+        // ロビー復帰: クイズ終了後にロビーに戻る
+        const onBackToLobby = (payload: RoomStateSync) => {
+            // クイズ状態をリセット
+            useQuizStore.getState().reset();
+            // RoomStateSync でルーム状態を全更新
+            const store = useRoomStore.getState();
+            const participantId = store.participantId;
+            if (participantId) {
+                store.setRoomState(participantId, payload);
+            }
+        };
+
         // Quiz イベント
         const onQuizGenerating = () => {
             useQuizStore.getState().setGenerating();
@@ -182,6 +195,7 @@ export function useSocket(): void {
         socket.on(S2C_EVENTS.ROOM_HOST_CHANGED, onHostChanged);
         socket.on(S2C_EVENTS.PROFILE_UPDATED, onProfileUpdated);
         socket.on(S2C_EVENTS.ROOM_CLOSED, onRoomClosed);
+        socket.on(S2C_EVENTS.ROOM_BACK_TO_LOBBY, onBackToLobby);
         socket.on(S2C_EVENTS.QUIZ_GENERATING, onQuizGenerating);
         socket.on(S2C_EVENTS.QUIZ_READY, onQuizReady);
         socket.on(S2C_EVENTS.QUIZ_GENERATE_FAILED, onQuizGenerateFailed);
@@ -202,6 +216,7 @@ export function useSocket(): void {
             socket.off(S2C_EVENTS.ROOM_HOST_CHANGED, onHostChanged);
             socket.off(S2C_EVENTS.PROFILE_UPDATED, onProfileUpdated);
             socket.off(S2C_EVENTS.ROOM_CLOSED, onRoomClosed);
+            socket.off(S2C_EVENTS.ROOM_BACK_TO_LOBBY, onBackToLobby);
             socket.off(S2C_EVENTS.QUIZ_GENERATING, onQuizGenerating);
             socket.off(S2C_EVENTS.QUIZ_READY, onQuizReady);
             socket.off(S2C_EVENTS.QUIZ_GENERATE_FAILED, onQuizGenerateFailed);

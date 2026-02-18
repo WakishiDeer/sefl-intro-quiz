@@ -14,6 +14,10 @@ export function ResultView() {
   const isHost = useRoomStore((s) => s.isHost);
   const finalScores = useQuizStore((s) => s.finalScores);
 
+  const handleBackToLobby = () => {
+    socket.emit(C2S_EVENTS.ROOM_BACK_TO_LOBBY);
+  };
+
   const handleCloseRoom = () => {
     if (confirm("ルームを閉じますか？")) {
       socket.emit(C2S_EVENTS.ROOM_CLOSE);
@@ -38,7 +42,13 @@ export function ResultView() {
       <Scoreboard scores={finalScores} />
 
       {isHost && (
-        <div className="text-center">
+        <div className="flex justify-center gap-4">
+          <button
+            onClick={handleBackToLobby}
+            className="rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white transition hover:bg-indigo-700"
+          >
+            ロビーに戻る
+          </button>
           <button
             onClick={handleCloseRoom}
             className="rounded-lg bg-gray-600 px-6 py-3 font-semibold text-white transition hover:bg-gray-700"
