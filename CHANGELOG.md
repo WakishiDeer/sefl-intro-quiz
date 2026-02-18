@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 ### Added
 
 - **ロビー復帰機能**: クイズ終了後にルームを閉じずにロビーへ戻れる機能を追加。Host が結果画面で「ロビーに戻る」ボタンを押すと、全参加者がロビーフェーズに戻り、プロフィールを保持したまま次のクイズを生成可能に。`RoomAggregate.backToLobby()` メソッド追加、`room:back-to-lobby` イベント（C2S / S2C）追加、`ResultView` に「ロビーに戻る」ボタン追加
+- **セッション維持（リロード復帰）**: ブラウザリロードやタブ再開時にルームへ自動復帰する機能を追加。`localStorage` に `roomCode` / `nickname` を保存し、リロード後に自動で `socket.connect()` → `room:join` を再送信。既存のニックネームベース再接続（`reconnectParticipant`）で全状態（フェーズ・スコア・現在の問題）が復元される。`RoomPage` に再接続中ローディング表示（5秒タイムアウト付き）を追加
+- **タブ間セッション管理（後発タブ優先）**: BroadcastChannel を使い、新しいタブが同じルームを開いたら旧タブの Socket を自動切断し、セッションを引き継ぐ仕組みを追加（ADR-0004）。旧タブには「別のタブで開かれています」画面と「このタブで再開する」ボタンを表示。`TopPage` の `clearSession` を条件付きに変更し、他タブのセッションを破壊しないよう改善。BroadcastChannel 未サポート環境では従来動作にフォールバック
 - プロジェクト初期セットアップ（モノレポ構成）
 - PRD（プロダクト仕様書）作成 (`docs/prd.md`)
 - 技術設計書作成 (`docs/technical-design.md`)
@@ -34,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 
 ### Fixed
 
+- セッション再接続後、クイズ進行中（playing / revealing）に「問題を読み込み中...」のまま固まる問題を修正。`room:joined` 受信時に `RoomStateSync` の `currentQuestion` / `revealedAnswer` を quiz ストアに復元する `restoreQuizState` ヘルパーを追加。`generating` / `finished` フェーズでの復帰も同時に対応
 - 存在しないルームコードでニックネーム重複チェックを行うと、常に「このニックネームは既に使われています」と表示されていたバグを修正。`NicknameResultPayload` に `reason` フィールドを追加し、ルーム不在時は「ルームが見つかりません」を表示するよう改善
 - `AIOutputJsonSchema` の `zodToJsonSchema` 呼び出しで `name` オプションを指定していたため、生成されるスキーマが `definitions` ラッパーで包まれ、トップレベルに `type: "object"` が存在しなかった。Anthropic API は `input_schema.type` を必須フィールドとするため `400 invalid_request_error` が発生していた。`name` オプション除去とフラットスキーマ生成に修正し、`$schema` メタキーも除去
 - 全フィールド空のプロフィールでクイズ生成が可能になっていた問題を修正。`ProfileSchema` に `.refine()` で最低1フィールド非空バリデーション追加、`RoomAggregate.getProfileSubmittedCount()` で空プロフィール除外、`ClaudeQuizGenerator.buildUserPrompt()` で空フィールド省略、`ProfileForm` にサーバ側エラーのフィードバック表示を追加

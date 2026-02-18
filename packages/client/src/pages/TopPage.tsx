@@ -2,11 +2,29 @@
  * TopPage — トップページ
  *
  * ルーム作成 or 参加を選択する画面。
+ * トップに戻った = ルームから退出した、とみなしセッション情報をクリアする。
+ * ただし他タブがルーム内にいる場合は、そのタブの復帰用セッションを壊さないよう保持する。
  */
 
+import { useEffect } from "react";
 import { Link } from "react-router";
+import { clearSession } from "../lib/sessionPersistence";
+import { TabSession } from "../lib/tabSession";
 
 export function TopPage() {
+  // トップページ表示時にセッション情報をクリア（意図的な退出）
+  // ただし他タブがアクティブなら clearSession しない
+  useEffect(() => {
+    const tabSession = new TabSession();
+
+    tabSession.hasActiveTab().then((active) => {
+      if (!active) {
+        clearSession();
+      }
+      tabSession.destroy();
+    });
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100 p-4">
       <div className="w-full max-w-md space-y-8 text-center">

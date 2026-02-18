@@ -21,9 +21,11 @@ import type {
     QuizFinishedPayload,
     RoomErrorPayload,
     RoomStateSync,
+    ScoreEntry,
 } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { useQuizStore } from "../stores/useQuizStore.js";
+import { saveSession, clearSession } from "../lib/sessionPersistence.js";
 import { useNavigate } from "react-router";
 
 /**
@@ -34,11 +36,69 @@ export function useSocket(): void {
     const navigate = useNavigate();
 
     useEffect(() => {
+        /**
+         * RoomStateSync からクイズ状態を復元する。
+         *
+         * 再接続・途中参加時、room:joined の RoomStateSync には
+         * 現在の問題・正解情報が含まれるが、quiz ストアは空のまま。
+         * このヘルパーで quiz ストアに反映し、QuizView の「問題を読み込み中...」固まりを防ぐ。
+         *
+         * 正常なクイズフロー（question:start / question:reveal イベント）は
+         * 別のイベントハンドラで処理されるため、干渉しない。
+         */
+        const restoreQuizState = (roomState: RoomStateSync) => {
+            const quizStore = useQuizStore.getState();
+            const { phase } = roomState.room;
+            const { currentQuestion, revealedAnswer } = roomState;
+
+            if (phase === "playing" || phase === "revealing") {
+                if (currentQuestion) {
+                    // 問題情報を復元（CurrentQuestionInfo は QuestionStartPayload のスーパーセット）
+                    quizStore.setQuestion(currentQuestion);
+                    // setQuestion は answeredCount を 0 にリセットするため、実際の値で上書き
+                    quizStore.setAnswerCount(
+                        currentQuestion.answeredCount,
+                        currentQuestion.totalParticipants,
+                    );
+                }
+
+                if (revealedAnswer && phase === "revealing" && currentQuestion) {
+                    // 正解発表情報を復元
+                    quizStore.setReveal({
+                        questionIndex: currentQuestion.index,
+                        ...revealedAnswer,
+                    });
+                }
+            } else if (phase === "generating") {
+                quizStore.setGenerating();
+            } else if (phase === "finished") {
+                // 終了状態を復元
+                // revealedAnswer.scores があればそのまま使い、なければ participants から構築
+                const finalScores: ScoreEntry[] = roomState.revealedAnswer
+                    ? roomState.revealedAnswer.scores
+                    : roomState.participants
+                        .map((p, i) => ({
+                            nickname: p.nickname,
+                            score: p.score,
+                            correctCount: Math.round(p.score / 100),
+                            answeredCount: p.answeredCount,
+                            totalQuestions: p.totalQuestions,
+                            isLateJoiner: false,
+                            rank: i + 1,
+                        }))
+                        .sort((a, b) => b.score - a.score)
+                        .map((entry, i) => ({ ...entry, rank: i + 1 }));
+                quizStore.setFinished(finalScores);
+            }
+        };
+
         // 接続状態の管理
         const onConnect = () => {
             useRoomStore.getState().setConnected(true);
 
-            // 再接続時に room:join を再送信
+            // 同一タブ内のネットワーク復帰（Socket.IO の自動再接続）の場合のみ
+            // room:join を自動送信する。Zustand にデータがあれば同一タブ内。
+            // リロード・新タブの場合は Zustand が空なので、RoomPage の claim フローに委譲する。
             const { roomCode, nickname } = useRoomStore.getState();
             if (roomCode && nickname) {
                 socket.emit("room:join", { roomCode, nickname });
@@ -53,6 +113,7 @@ export function useSocket(): void {
         const onRoomCreated = (payload: RoomCreatedPayload) => {
             const store = useRoomStore.getState();
             store.setRoomState(payload.participantId, payload.roomState);
+            saveSession({ roomCode: payload.roomCode, nickname: payload.roomState.self.nickname });
             navigate(`/room/${payload.roomCode}`);
         };
 
@@ -60,6 +121,11 @@ export function useSocket(): void {
             const store = useRoomStore.getState();
             store.setRoomState(payload.participantId, payload.roomState);
             const roomCode = payload.roomState.room.code;
+            saveSession({ roomCode, nickname: payload.roomState.self.nickname });
+
+            // 再接続・途中参加時にクイズ状態を RoomStateSync から復元
+            restoreQuizState(payload.roomState);
+
             navigate(`/room/${roomCode}`);
         };
 
@@ -121,6 +187,7 @@ export function useSocket(): void {
         };
 
         const onRoomClosed = () => {
+            clearSession();
             useRoomStore.getState().reset();
             useQuizStore.getState().reset();
             navigate("/");
@@ -175,6 +242,7 @@ export function useSocket(): void {
         const onError = (payload: RoomErrorPayload) => {
             // ROOM_NOT_FOUND はトップ画面に戻す
             if (payload.code === "ROOM_NOT_FOUND") {
+                clearSession();
                 useRoomStore.getState().reset();
                 useQuizStore.getState().reset();
                 navigate("/");
