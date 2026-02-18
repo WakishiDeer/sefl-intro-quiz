@@ -41,4 +41,7 @@ export type {
     JoinRoomPayload,
     SubmitProfilePayload,
     SubmitAnswerPayload,
+    RoomSummary,
+    RoomSummaryParticipant,
+    RoomListPayload,
 } from "./sync.js";

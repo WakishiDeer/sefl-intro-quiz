@@ -19,6 +19,8 @@
 | `quiz:next-question` | Host | `{}` | 次の問題へ進む |
 | `question:answer` | Participant | `{ questionIndex: number, choiceIndex: number }` | 回答送信 |
 | `room:close` | Host | `{}` | ルームを閉じる |
+| `room:list-subscribe` | Any | `{}` | ルーム一覧のリアルタイム購読開始 |
+| `room:list-unsubscribe` | Any | `{}` | ルーム一覧の購読解除 |
 
 ### Server → Client
 
@@ -39,6 +41,7 @@
 | `question:answer-count` | Room | `{ answeredCount: number, totalCount: number }` | 回答状況更新 |
 | `question:reveal` | Room | `QuestionRevealPayload` | 正解発表 |
 | `quiz:finished` | Room | `QuizFinishedPayload` | 全問終了・最終結果 |
+| `room:list` | Subscribers | `RoomListPayload` | ルーム一覧（リアルタイム更新） |
 
 ---
 
@@ -54,6 +57,29 @@ interface Profile {
   favoriteFood: string;  // 好きな食べ物 (max 100文字)
   surprisingFact: string; // 意外な事実 (max 100文字)
   freeText: string;      // 自由記述 (max 100文字)
+}
+```
+
+### RoomSummary / RoomListPayload
+
+```typescript
+interface RoomSummaryParticipant {
+  nickname: string;
+  isConnected: boolean;
+}
+
+interface RoomSummary {
+  code: string;
+  phase: "lobby" | "generating" | "playing" | "revealing" | "finished";
+  hostNickname: string;
+  participants: RoomSummaryParticipant[];
+  participantCount: number;
+  maxParticipants: number;  // 20
+  createdAt: number;        // Unix timestamp (ms)
+}
+
+interface RoomListPayload {
+  rooms: RoomSummary[];
 }
 ```
 

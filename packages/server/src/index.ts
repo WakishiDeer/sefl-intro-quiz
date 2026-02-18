@@ -29,6 +29,7 @@ import { InMemoryQuizRepository } from "./infrastructure/InMemoryQuizRepository.
 import { ClaudeQuizGenerator } from "./infrastructure/ClaudeQuizGenerator.js";
 import { NodeTimerService } from "./infrastructure/NodeTimerService.js";
 import { registerRoomHandlers } from "./application/roomHandlers.js";
+import { broadcastRoomList } from "./application/roomHandlers.js";
 import { registerQuizHandlers } from "./application/quizHandlers.js";
 import { logger } from "./utils/logger.js";
 
@@ -119,6 +120,8 @@ setInterval(() => {
       logger.info({ roomCode: code }, "Room expired (TTL)");
     }
   }
+  // TTL で削除されたルームがあればルーム一覧を更新
+  broadcastRoomList(io, roomRepo);
 }, ROOM_CLEANUP_INTERVAL_MS);
 
 // ============================================================

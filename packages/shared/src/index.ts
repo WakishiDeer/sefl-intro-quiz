@@ -38,6 +38,9 @@ export type {
     JoinRoomPayload,
     SubmitProfilePayload,
     SubmitAnswerPayload,
+    RoomSummary,
+    RoomSummaryParticipant,
+    RoomListPayload,
 } from "./types/index.js";
 
 // 定数

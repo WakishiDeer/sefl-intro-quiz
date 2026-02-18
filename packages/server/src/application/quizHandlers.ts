@@ -28,6 +28,7 @@ import type { QuizRepository } from "../domain/quiz/QuizRepository.js";
 import type { QuizGenerator } from "../domain/quiz/QuizGenerator.js";
 import { NodeTimerService } from "../infrastructure/NodeTimerService.js";
 import { socketSessions } from "./roomHandlers.js";
+import { broadcastRoomList } from "./roomHandlers.js";
 import { logger } from "../utils/logger.js";
 
 // ============================================================
@@ -105,6 +106,9 @@ export function registerQuizHandlers(
             };
             io.to(session.roomCode).emit(S2C_EVENTS.QUIZ_GENERATING, generating);
 
+            // ルーム一覧を更新（generating フェーズに遷移したため）
+            broadcastRoomList(io, roomRepo);
+
             // AI クイズ生成（非同期）
             const participants = Array.from(room.participants.values())
                 .filter((p) => p.profile !== null)
@@ -125,6 +129,8 @@ export function registerQuizHandlers(
                     };
                     io.to(session.roomCode).emit(S2C_EVENTS.QUIZ_READY, ready);
 
+                    broadcastRoomList(io, roomRepo);
+
                     logger.info(
                         { roomCode: session.roomCode, questionCount: questions.length },
                         "Quiz generated successfully",
@@ -142,6 +148,8 @@ export function registerQuizHandlers(
                         message: "クイズの生成に失敗しました。もう一度お試しください。",
                     };
                     io.to(session.roomCode).emit(S2C_EVENTS.QUIZ_GENERATE_FAILED, failed);
+
+                    broadcastRoomList(io, roomRepo);
 
                     logger.error(
                         { roomCode: session.roomCode, error: error instanceof Error ? error.message : String(error) },
@@ -207,6 +215,8 @@ export function registerQuizHandlers(
                 scheduleTimeout(io, session.roomCode, roomRepo, quizRepo, quizAgg, roomAgg, timerService, timeLimit);
 
                 logger.info({ roomCode: session.roomCode, questionIndex: 0 }, "Quiz started");
+
+                broadcastRoomList(io, roomRepo);
             } else if (roomAgg.phase === "revealing") {
                 // 次の問題 or 終了
                 const nextEligible = getEligibleParticipants(roomAgg, quizAgg.currentQuestionIndex + 1);
@@ -239,6 +249,8 @@ export function registerQuizHandlers(
                     timerService.cancel(session.roomCode);
 
                     logger.info({ roomCode: session.roomCode }, "Quiz finished");
+
+                    broadcastRoomList(io, roomRepo);
                 }
             } else {
                 socket.emit(S2C_EVENTS.ROOM_ERROR, {
@@ -398,6 +410,9 @@ function triggerReveal(
         { roomCode, questionIndex: quizAgg.currentQuestionIndex },
         "Question revealed",
     );
+
+    // revealing フェーズに遷移したためルーム一覧を更新
+    broadcastRoomList(io, roomRepo);
 }
 
 // ============================================================

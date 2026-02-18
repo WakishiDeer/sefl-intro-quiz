@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 - **Phase 5**: クライアント基盤 — Socket.IO クライアント / Zustand ストア（`useRoomStore` / `useQuizStore`）/ カスタムフック（`useSocket` / `useTimer`）
 - **Phase 6**: クライアント UI — ページ（Top / CreateRoom / JoinRoom / Room）/ コンポーネント（ProfileForm / ParticipantList / LobbyView / QuizView / ResultView 等 11 コンポーネント）
 - **Phase 7**: ユニットテスト — RoomAggregate (27 tests) / QuizAggregate (21 tests) / InMemoryRoomRepository (7 tests) / InMemoryQuizRepository (3 tests) / roomCode (3 tests) / sanitize (6 tests) / Zod validation (22 tests) — 計 89 テスト全パス
+- **Phase 8**: Join ページにリアルタイムルーム一覧表示機能を追加 — Socket.IO subscribe パターンで既存ルーム・参加者をリアルタイム確認可能に（ニックネーム重複の事前把握）。`RoomListPanel` コンポーネント新規作成、`broadcastRoomList` ヘルパー追加、テスト 4 件追加（計 93 テスト全パス）
 
 ### Changed
 

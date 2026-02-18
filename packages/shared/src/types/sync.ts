@@ -198,3 +198,29 @@ export interface SubmitAnswerPayload {
     questionIndex: number;
     choiceIndex: number;
 }
+
+// ============================================================
+// ルーム一覧（Join ページ用）
+// ============================================================
+
+/** ルーム一覧に表示するサマリー情報 */
+export interface RoomSummaryParticipant {
+    nickname: string;
+    isConnected: boolean;
+}
+
+/** ルーム一覧の1件分のサマリー */
+export interface RoomSummary {
+    code: string;
+    phase: RoomPhase;
+    hostNickname: string;
+    participants: RoomSummaryParticipant[];
+    participantCount: number;
+    maxParticipants: number;
+    createdAt: number;
+}
+
+/** room:list ペイロード */
+export interface RoomListPayload {
+    rooms: RoomSummary[];
+}

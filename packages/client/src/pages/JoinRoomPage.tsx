@@ -3,13 +3,16 @@
  *
  * Room Code + ニックネームを入力して既存ルームに参加する。
  * URL パラメータで roomCode を受け取ることも可能。
+ * アクティブなルーム一覧をリアルタイムで表示し、クリックでルームコード自動入力。
  */
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router";
 import { socket } from "../lib/socket.js";
-import { C2S_EVENTS, NicknameSchema, RoomCodeSchema } from "@self-intro-quiz/shared";
+import { C2S_EVENTS, S2C_EVENTS, NicknameSchema, RoomCodeSchema } from "@self-intro-quiz/shared";
+import type { RoomSummary, RoomListPayload } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
+import { RoomListPanel } from "../components/RoomListPanel.js";
 
 export function JoinRoomPage() {
   const { roomCode: urlRoomCode } = useParams<{ roomCode?: string }>();
@@ -17,6 +20,37 @@ export function JoinRoomPage() {
   const [nickname, setNickname] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rooms, setRooms] = useState<RoomSummary[]>([]);
+
+  // ルーム一覧のリアルタイム購読
+  useEffect(() => {
+    // Socket 接続してルーム一覧を購読
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const onRoomList = (payload: RoomListPayload) => {
+      setRooms(payload.rooms);
+    };
+
+    socket.on(S2C_EVENTS.ROOM_LIST, onRoomList);
+    socket.emit(C2S_EVENTS.ROOM_LIST_SUBSCRIBE);
+
+    return () => {
+      socket.off(S2C_EVENTS.ROOM_LIST, onRoomList);
+      socket.emit(C2S_EVENTS.ROOM_LIST_UNSUBSCRIBE);
+
+      // ルーム参加中でなければ切断
+      const { roomCode: currentRoom } = useRoomStore.getState();
+      if (!currentRoom) {
+        socket.disconnect();
+      }
+    };
+  }, []);
+
+  const handleSelectRoom = useCallback((code: string) => {
+    setRoomCode(code);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +74,9 @@ export function JoinRoomPage() {
       socket.connect();
     }
 
+    // 購読解除してから参加処理へ
+    socket.emit(C2S_EVENTS.ROOM_LIST_UNSUBSCRIBE);
+
     const normalizedCode = roomCode.toUpperCase();
     useRoomStore.getState().setCredentials(normalizedCode, nickname);
     socket.emit(C2S_EVENTS.ROOM_JOIN, { roomCode: normalizedCode, nickname });
@@ -51,7 +88,7 @@ export function JoinRoomPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-indigo-900">ルームに参加</h1>
           <p className="mt-1 text-sm text-gray-500">
-            ルームコードを入力してください
+            ルームコードを入力するか、一覧からルームを選んでください
           </p>
         </div>
 
@@ -99,6 +136,8 @@ export function JoinRoomPage() {
             {isSubmitting ? "参加中..." : "参加する"}
           </button>
         </form>
+
+        <RoomListPanel rooms={rooms} onSelectRoom={handleSelectRoom} />
 
         <div className="text-center">
           <Link to="/" className="text-sm text-indigo-600 hover:underline">

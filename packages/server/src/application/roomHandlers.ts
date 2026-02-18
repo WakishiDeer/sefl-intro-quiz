@@ -13,6 +13,7 @@ import {
     JoinRoomSchema,
     SubmitProfileSchema,
     HOST_RECONNECT_GRACE_MS,
+    MAX_PARTICIPANTS,
 } from "@self-intro-quiz/shared";
 import type {
     RoomStateSync,
@@ -25,6 +26,8 @@ import type {
     ProfileUpdatedPayload,
     RoomErrorPayload,
     Participant,
+    RoomSummary,
+    RoomListPayload,
 } from "@self-intro-quiz/shared";
 import { RoomAggregate, RoomDomainError } from "../domain/room/RoomAggregate.js";
 import type { RoomRepository } from "../domain/room/RoomRepository.js";
@@ -46,6 +49,43 @@ interface SocketSession {
 }
 
 const socketSessions = new Map<string, SocketSession>();
+
+// ============================================================
+// ルーム一覧購読用メタルーム名
+// 通常のゲームルーム（英数字コード）と名前が衝突しないようにプレフィックス付き
+// ============================================================
+const ROOM_LIST_META_ROOM = "__room_list__";
+
+// ============================================================
+// Helper: ルーム一覧ブロードキャスト
+// ============================================================
+
+/**
+ * 全ルームのサマリーを構築し、購読中のクライアントにブロードキャストする。
+ * ルームの作成・参加・離脱・フェーズ変更など、一覧に影響する操作のあとに呼び出す。
+ */
+export function broadcastRoomList(io: Server, roomRepo: RoomRepository): void {
+    const rooms: RoomSummary[] = [];
+
+    for (const [, room] of roomRepo.findAll()) {
+        const host = Array.from(room.participants.values()).find((p) => p.isHost);
+        rooms.push({
+            code: room.code,
+            phase: room.phase,
+            hostNickname: host?.nickname ?? "",
+            participants: Array.from(room.participants.values()).map((p) => ({
+                nickname: p.nickname,
+                isConnected: p.isConnected,
+            })),
+            participantCount: room.participants.size,
+            maxParticipants: MAX_PARTICIPANTS,
+            createdAt: room.createdAt,
+        });
+    }
+
+    const payload: RoomListPayload = { rooms };
+    io.to(ROOM_LIST_META_ROOM).emit(S2C_EVENTS.ROOM_LIST, payload);
+}
 
 // ============================================================
 // Helper: RoomStateSync 構築
@@ -146,6 +186,41 @@ export function registerRoomHandlers(
     timerService: NodeTimerService,
 ): void {
     // ----------------------------------------------------------
+    // room:list-subscribe——ルーム一覧のリアルタイム購読開始
+    // ----------------------------------------------------------
+    socket.on(C2S_EVENTS.ROOM_LIST_SUBSCRIBE, () => {
+        void socket.join(ROOM_LIST_META_ROOM);
+
+        // 即座に現在のルーム一覧を返信
+        const rooms: RoomSummary[] = [];
+        for (const [, room] of roomRepo.findAll()) {
+            const host = Array.from(room.participants.values()).find((p) => p.isHost);
+            rooms.push({
+                code: room.code,
+                phase: room.phase,
+                hostNickname: host?.nickname ?? "",
+                participants: Array.from(room.participants.values()).map((p) => ({
+                    nickname: p.nickname,
+                    isConnected: p.isConnected,
+                })),
+                participantCount: room.participants.size,
+                maxParticipants: MAX_PARTICIPANTS,
+                createdAt: room.createdAt,
+            });
+        }
+        socket.emit(S2C_EVENTS.ROOM_LIST, { rooms } satisfies RoomListPayload);
+        logger.info({ socketId: socket.id }, "Room list subscribed");
+    });
+
+    // ----------------------------------------------------------
+    // room:list-unsubscribe——ルーム一覧の購読解除
+    // ----------------------------------------------------------
+    socket.on(C2S_EVENTS.ROOM_LIST_UNSUBSCRIBE, () => {
+        void socket.leave(ROOM_LIST_META_ROOM);
+        logger.info({ socketId: socket.id }, "Room list unsubscribed");
+    });
+
+    // ----------------------------------------------------------
     // room:create
     // ----------------------------------------------------------
     socket.on(C2S_EVENTS.ROOM_CREATE, (payload: unknown) => {
@@ -173,6 +248,8 @@ export function registerRoomHandlers(
 
             socket.emit(S2C_EVENTS.ROOM_CREATED, response);
             logger.info({ roomCode, nickname, participantId: host.id }, "Room created");
+
+            broadcastRoomList(io, roomRepo);
         } catch (error) {
             emitError(socket, error);
         }
@@ -226,6 +303,8 @@ export function registerRoomHandlers(
                 socket.to(roomCode).emit(S2C_EVENTS.ROOM_PARTICIPANT_JOINED, joined);
 
                 logger.info({ roomCode, nickname, participantId: reconnected.id }, "Participant reconnected");
+
+                broadcastRoomList(io, roomRepo);
                 return;
             }
 
@@ -255,6 +334,8 @@ export function registerRoomHandlers(
             socket.to(roomCode).emit(S2C_EVENTS.ROOM_PARTICIPANT_JOINED, joined);
 
             logger.info({ roomCode, nickname, participantId: participant.id }, "Participant joined");
+
+            broadcastRoomList(io, roomRepo);
         } catch (error) {
             emitError(socket, error);
         }
@@ -308,6 +389,8 @@ export function registerRoomHandlers(
             quizRepo.delete(session.roomCode);
 
             logger.info({ roomCode: session.roomCode }, "Room closed by host");
+
+            broadcastRoomList(io, roomRepo);
         } catch (error) {
             emitError(socket, error);
         }
@@ -428,6 +511,7 @@ function handleDisconnect(
                             { roomCode: session.roomCode, newHost: newHost.nickname },
                             "Host transferred",
                         );
+                        broadcastRoomList(io, roomRepo);
                     }
                 }
             },
@@ -438,6 +522,8 @@ function handleDisconnect(
         { roomCode: session.roomCode, nickname: participant.nickname },
         "Participant disconnected",
     );
+
+    broadcastRoomList(io, roomRepo);
 }
 
 // ============================================================
