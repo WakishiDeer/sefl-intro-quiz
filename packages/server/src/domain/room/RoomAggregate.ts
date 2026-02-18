@@ -47,8 +47,13 @@ export class RoomAggregate {
     /**
      * 新しいルームを作成する。
      * Host として最初の参加者を同時に登録する。
+     *
+     * @param roomCode - ルームコード
+     * @param hostNickname - Host のニックネーム
+     * @param hostSocketId - Host の Socket.IO socket.id
+     * @param hostClientId - Host のブラウザ固有識別子（マルチタブ重複防止用）
      */
-    static create(roomCode: string, hostNickname: string, hostSocketId: string): RoomAggregate {
+    static create(roomCode: string, hostNickname: string, hostSocketId: string, hostClientId?: string): RoomAggregate {
         const hostId = uuidv4();
         const now = Date.now();
 
@@ -61,6 +66,7 @@ export class RoomAggregate {
             joinedAtQuestion: -1,
             isConnected: true,
             joinedAt: now,
+            ...(hostClientId ? { clientId: hostClientId } : {}),
         };
 
         const participants = new Map<string, Participant>();
@@ -96,10 +102,11 @@ export class RoomAggregate {
      * @param nickname - ニックネーム（ルーム内ユニーク）
      * @param socketId - Socket.IO の socket.id
      * @param currentQuestionIndex - 現在の問題番号（途中参加の場合）
+     * @param clientId - ブラウザ固有識別子（同一ブラウザの別タブからの重複参加を防止）
      * @returns 作成された Participant
-     * @throws RoomDomainError ROOM_FULL / NICKNAME_TAKEN
+     * @throws RoomDomainError ROOM_FULL / NICKNAME_TAKEN / DUPLICATE_CLIENT
      */
-    addParticipant(nickname: string, socketId: string, currentQuestionIndex = -1): Participant {
+    addParticipant(nickname: string, socketId: string, currentQuestionIndex = -1, clientId?: string): Participant {
         if (this.room.participants.size >= MAX_PARTICIPANTS) {
             throw new RoomDomainError("ROOM_FULL", "ルームが満員です");
         }
@@ -107,6 +114,14 @@ export class RoomAggregate {
         // ニックネーム重複チェック（接続中の参加者のみ対象、case-insensitive）
         if (!this.isNicknameAvailable(nickname)) {
             throw new RoomDomainError("NICKNAME_TAKEN", "このニックネームは既に使われています");
+        }
+
+        // 同一ブラウザ（clientId）からの重複参加チェック
+        if (clientId && this.hasConnectedClientId(clientId)) {
+            throw new RoomDomainError(
+                "DUPLICATE_CLIENT",
+                "このブラウザは既にこのルームに参加しています",
+            );
         }
 
         const participantId = uuidv4();
@@ -130,6 +145,7 @@ export class RoomAggregate {
             joinedAtQuestion,
             isConnected: true,
             joinedAt: now,
+            ...(clientId ? { clientId } : {}),
         };
 
         this.room.participants.set(participantId, participant);
@@ -162,14 +178,20 @@ export class RoomAggregate {
      * 切断中の同名参加者を探して再接続する。
      * 大文字・小文字を区別しない（case-insensitive）。
      *
+     * @param nickname - ニックネーム
+     * @param newSocketId - 新しい Socket.IO の socket.id
+     * @param clientId - ブラウザ固有識別子（再接続時に更新）
      * @returns 再接続された Participant。見つからなければ null
      */
-    reconnectParticipant(nickname: string, newSocketId: string): Participant | null {
+    reconnectParticipant(nickname: string, newSocketId: string, clientId?: string): Participant | null {
         const lowerNickname = nickname.toLowerCase();
         for (const p of this.room.participants.values()) {
             if (p.nickname.toLowerCase() === lowerNickname && !p.isConnected) {
                 p.socketId = newSocketId;
                 p.isConnected = true;
+                if (clientId) {
+                    p.clientId = clientId;
+                }
                 this.room.lastActivityAt = Date.now();
                 return p;
             }
@@ -349,6 +371,21 @@ export class RoomAggregate {
             }
         }
         return true;
+    }
+
+    /**
+     * 指定 clientId が接続中の参加者に存在するかチェックする。
+     * 同一ブラウザ（タブ違い）からの重複参加を検出するために使用。
+     *
+     * @returns 接続中の参加者に同一 clientId が存在すれば true
+     */
+    hasConnectedClientId(clientId: string): boolean {
+        for (const p of this.room.participants.values()) {
+            if (p.clientId === clientId && p.isConnected) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

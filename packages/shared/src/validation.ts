@@ -70,12 +70,16 @@ export const ProfileSchema = z.object({
 /** room:create ペイロード */
 export const CreateRoomSchema = z.object({
     nickname: NicknameSchema,
+    /** ブラウザ単位の一意識別子（マルチタブ重複防止用） */
+    clientId: z.string().uuid().optional(),
 });
 
 /** room:join ペイロード */
 export const JoinRoomSchema = z.object({
     roomCode: RoomCodeSchema,
     nickname: NicknameSchema,
+    /** ブラウザ単位の一意識別子（マルチタブ重複防止用） */
+    clientId: z.string().uuid().optional(),
 });
 
 /** profile:submit ペイロード */

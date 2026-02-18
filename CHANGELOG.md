@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 ### Added
 
 - **クイズ中の参加者一覧サイドバー**: `playing` / `revealing` フェーズで画面右側に参加者一覧を常時表示。ホストバッジ・接続状態も確認可能。モバイルではメイン下にスタック表示（レスポンシブ対応）
+
+### Fixed
+
+- **別タブからの新規参加によるタブセッション制御バイパス**: 同一ブラウザの別タブから新しいニックネームで同じルームに参加できてしまうバグを修正（ADR-0005）。3層防御で対策:
+  1. **クライアント**: `JoinRoomPage` で `TabSession.hasActiveTab()` をチェックし、アクティブタブがある場合は参加をブロック
+  2. **クライアント**: `RoomPage` マウント時に `claim()` を無条件実行し、JoinRoomPage 経由の遷移でも旧タブに yield を通知
+  3. **サーバ**: `clientId`（ブラウザ単位の UUID、localStorage 永続化）による重複参加検出。`RoomAggregate.addParticipant()` で同一 `clientId` の接続中参加者がいる場合 `DUPLICATE_CLIENT` エラーを返却
 - **回答状況リアルタイム表示**: クイズ進行中に各参加者の回答状態（✓ 回答済み / ⏳ 回答中）をリアルタイムに表示。`AnswerCountPayload` / `CurrentQuestionInfo` に `answeredNicknames` フィールドを追加し、再接続時の状態復元にも対応
 - **自分のニックネーム強調表示**: 全フェーズ（ロビー・クイズ中）の参加者一覧で、自分の行を `ring-2 ring-indigo-400` で強調し「(あなた)」ラベルを表示
 - `QuizAggregate.getAnsweredParticipantIds()` メソッド追加（現在の問題に対する回答済み参加者 ID 一覧を返す）

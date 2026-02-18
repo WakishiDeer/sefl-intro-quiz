@@ -177,12 +177,16 @@ export interface RoomErrorPayload {
 /** room:create ペイロード */
 export interface CreateRoomPayload {
     nickname: string;
+    /** ブラウザ単位の一意識別子（マルチタブ重複防止用） */
+    clientId?: string;
 }
 
 /** room:join ペイロード */
 export interface JoinRoomPayload {
     roomCode: string;
     nickname: string;
+    /** ブラウザ単位の一意識別子（マルチタブ重複防止用） */
+    clientId?: string;
 }
 
 /** profile:submit ペイロード */

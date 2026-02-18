@@ -272,9 +272,10 @@ export function registerRoomHandlers(
         try {
             const parsed = CreateRoomSchema.parse(payload);
             const nickname = sanitize(parsed.nickname);
+            const clientId = parsed.clientId;
 
             const roomCode = generateRoomCode(roomRepo);
-            const roomAgg = RoomAggregate.create(roomCode, nickname, socket.id);
+            const roomAgg = RoomAggregate.create(roomCode, nickname, socket.id, clientId);
             const room = roomAgg.toRoom();
 
             roomRepo.save(room);
@@ -308,6 +309,7 @@ export function registerRoomHandlers(
             const parsed = JoinRoomSchema.parse(payload);
             const roomCode = parsed.roomCode.toUpperCase();
             const nickname = sanitize(parsed.nickname);
+            const clientId = parsed.clientId;
 
             const room = roomRepo.findByCode(roomCode);
             if (!room) {
@@ -321,7 +323,7 @@ export function registerRoomHandlers(
             const roomAgg = RoomAggregate.fromRoom(room);
 
             // 再接続判定: 同じ nickname の切断中参加者がいれば復帰扱い
-            const reconnected = roomAgg.reconnectParticipant(nickname, socket.id);
+            const reconnected = roomAgg.reconnectParticipant(nickname, socket.id, clientId);
 
             if (reconnected) {
                 roomRepo.save(roomAgg.toRoom());
@@ -354,7 +356,7 @@ export function registerRoomHandlers(
             const quizData = quizRepo.findByRoomCode(roomCode);
             const currentQuestionIndex = quizData?.currentQuestionIndex ?? -1;
 
-            const participant = roomAgg.addParticipant(nickname, socket.id, currentQuestionIndex);
+            const participant = roomAgg.addParticipant(nickname, socket.id, currentQuestionIndex, clientId);
             roomRepo.save(roomAgg.toRoom());
             socketSessions.set(socket.id, { roomCode, participantId: participant.id });
 

@@ -26,7 +26,7 @@ import type {
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { useQuizStore } from "../stores/useQuizStore.js";
 import { useToastStore } from "../stores/useToastStore.js";
-import { saveSession, clearSession } from "../lib/sessionPersistence.js";
+import { saveSession, clearSession, getOrCreateClientId } from "../lib/sessionPersistence.js";
 import { useNavigate } from "react-router";
 
 /**
@@ -103,7 +103,7 @@ export function useSocket(): void {
             // リロード・新タブの場合は Zustand が空なので、RoomPage の claim フローに委譲する。
             const { roomCode, nickname } = useRoomStore.getState();
             if (roomCode && nickname) {
-                socket.emit("room:join", { roomCode, nickname });
+                socket.emit("room:join", { roomCode, nickname, clientId: getOrCreateClientId() });
             }
         };
 

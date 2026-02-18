@@ -14,7 +14,7 @@ import { useParams, Navigate } from "react-router";
 import { useRoomStore } from "../stores/useRoomStore";
 import { useQuizStore } from "../stores/useQuizStore";
 import { socket } from "../lib/socket";
-import { loadSession, clearSession } from "../lib/sessionPersistence";
+import { loadSession, clearSession, getOrCreateClientId } from "../lib/sessionPersistence";
 import { TabSession, POST_YIELD_DELAY_MS } from "../lib/tabSession";
 import { C2S_EVENTS, S2C_EVENTS } from "@self-intro-quiz/shared";
 import type { RoomErrorPayload } from "@self-intro-quiz/shared";
@@ -129,6 +129,7 @@ export function RoomPage() {
                 socket.emit(C2S_EVENTS.ROOM_JOIN, {
                     roomCode: session.roomCode,
                     nickname: session.nickname,
+                    clientId: getOrCreateClientId(),
                 });
 
                 // 個別タイムアウト: 3 秒以内に応答がなければ失敗扱い
@@ -190,6 +191,19 @@ export function RoomPage() {
             setIsYielded(true);
         });
     }, []);
+
+    // JoinRoomPage から遷移した場合（isReconnecting=false）にも、他タブのセッションを奪取する。
+    // これにより、万が一 JoinRoomPage の hasActiveTab() チェックをすり抜けた場合でも
+    // 旧タブ側の onYielded が発火し「別のタブで開かれています」表示になる。
+    useEffect(() => {
+        const tabSession = tabSessionRef.current;
+        // reconnect フローは performClaimAndJoin 内で claim() を呼ぶため、ここではスキップ
+        if (!tabSession || isReconnecting) return;
+        // ストアにルーム情報がある（= JoinRoomPage から遷移してきた）場合のみ
+        if (storeRoomCode && storeRoomCode === roomCode) {
+            tabSession.claim(); // fire-and-forget: 旧タブがあれば yield させる
+        }
+    }, [isReconnecting, storeRoomCode, roomCode]);
 
     // ストアに roomCode がセットされたら復帰完了
     useEffect(() => {

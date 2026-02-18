@@ -117,22 +117,6 @@ describe("ProfileSchema", () => {
 });
 
 // ============================================================
-// CreateRoomSchema
-// ============================================================
-
-describe("CreateRoomSchema", () => {
-    it("有効なペイロードを受け入れる", () => {
-        expect(CreateRoomSchema.safeParse({ nickname: "Alice" }).success).toBe(
-            true,
-        );
-    });
-
-    it("nickname が無いペイロードを拒否する", () => {
-        expect(CreateRoomSchema.safeParse({}).success).toBe(false);
-    });
-});
-
-// ============================================================
 // JoinRoomSchema
 // ============================================================
 
@@ -145,8 +129,66 @@ describe("JoinRoomSchema", () => {
         expect(result.success).toBe(true);
     });
 
+    it("clientId を含むペイロードを受け入れる", () => {
+        const result = JoinRoomSchema.safeParse({
+            roomCode: "ABC123",
+            nickname: "Bob",
+            clientId: "550e8400-e29b-41d4-a716-446655440000",
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("clientId を省略したペイロードを受け入れる（後方互換）", () => {
+        const result = JoinRoomSchema.safeParse({
+            roomCode: "ABC123",
+            nickname: "Bob",
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("不正な clientId を拒否する（UUID 形式でない）", () => {
+        const result = JoinRoomSchema.safeParse({
+            roomCode: "ABC123",
+            nickname: "Bob",
+            clientId: "not-a-uuid",
+        });
+        expect(result.success).toBe(false);
+    });
+
     it("roomCode が無いペイロードを拒否する", () => {
         expect(JoinRoomSchema.safeParse({ nickname: "Bob" }).success).toBe(false);
+    });
+});
+
+// ============================================================
+// CreateRoomSchema（clientId）
+// ============================================================
+
+describe("CreateRoomSchema", () => {
+    it("有効なペイロードを受け入れる", () => {
+        expect(CreateRoomSchema.safeParse({ nickname: "Alice" }).success).toBe(
+            true,
+        );
+    });
+
+    it("clientId を含むペイロードを受け入れる", () => {
+        const result = CreateRoomSchema.safeParse({
+            nickname: "Alice",
+            clientId: "550e8400-e29b-41d4-a716-446655440000",
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("不正な clientId を拒否する", () => {
+        const result = CreateRoomSchema.safeParse({
+            nickname: "Alice",
+            clientId: "invalid",
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it("nickname が無いペイロードを拒否する", () => {
+        expect(CreateRoomSchema.safeParse({}).success).toBe(false);
     });
 });
 

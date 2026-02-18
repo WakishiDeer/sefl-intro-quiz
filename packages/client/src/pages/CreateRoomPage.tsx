@@ -8,6 +8,7 @@ import { useState } from "react";
 import { socket } from "../lib/socket.js";
 import { C2S_EVENTS, NicknameSchema } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
+import { getOrCreateClientId } from "../lib/sessionPersistence.js";
 import { Link } from "react-router";
 
 export function CreateRoomPage() {
@@ -33,7 +34,7 @@ export function CreateRoomPage() {
     }
 
     useRoomStore.getState().setCredentials("", nickname);
-    socket.emit(C2S_EVENTS.ROOM_CREATE, { nickname });
+    socket.emit(C2S_EVENTS.ROOM_CREATE, { nickname, clientId: getOrCreateClientId() });
   };
 
   return (

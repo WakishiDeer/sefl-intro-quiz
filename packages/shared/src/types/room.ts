@@ -38,6 +38,12 @@ export interface Participant {
     isConnected: boolean;
     /** Unix timestamp (ms) — Host 移譲時の順序判定用 */
     joinedAt: number;
+    /**
+     * ブラウザ単位の一意識別子（localStorage に永続化）。
+     * 同一ブラウザの別タブから同じルームに重複参加することを防止する。
+     * 未設定の場合（レガシー互換）は重複チェックをスキップする。
+     */
+    clientId?: string;
 }
 
 // Profile は profile.ts から re-export するため import

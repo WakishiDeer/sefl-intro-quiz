@@ -17,6 +17,8 @@ import { socket } from "../lib/socket.js";
 import { C2S_EVENTS, S2C_EVENTS, NicknameSchema, RoomCodeSchema } from "@self-intro-quiz/shared";
 import type { RoomSummary, RoomListPayload, NicknameResultPayload, RoomErrorPayload } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
+import { getOrCreateClientId } from "../lib/sessionPersistence.js";
+import { TabSession } from "../lib/tabSession.js";
 import { RoomListPanel } from "../components/RoomListPanel.js";
 
 /** デバウンス間隔（ms）— ニックネーム重複チェックのサーバー問い合わせ頻度を制限 */
@@ -28,6 +30,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   ROOM_FULL: "ルームが満員です",
   ROOM_NOT_FOUND: "ルームが見つかりません",
   VALIDATION_ERROR: "入力内容が不正です",
+  DUPLICATE_CLIENT: "このブラウザは既にこのルームに参加しています。別のタブを確認してください",
 };
 
 export function JoinRoomPage() {
@@ -178,7 +181,7 @@ export function JoinRoomPage() {
     setRoomCode(code);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -199,6 +202,18 @@ export function JoinRoomPage() {
       return;
     }
 
+    // 別タブでルームを操作中の場合はブロックする
+    const tabSession = new TabSession();
+    try {
+      const active = await tabSession.hasActiveTab();
+      if (active) {
+        setError("別のタブでルームを操作中です。そちらのタブを閉じてから参加してください");
+        return;
+      }
+    } finally {
+      tabSession.destroy();
+    }
+
     setIsSubmitting(true);
 
     if (!socket.connected) {
@@ -209,9 +224,10 @@ export function JoinRoomPage() {
     socket.emit(C2S_EVENTS.ROOM_LIST_UNSUBSCRIBE);
 
     const normalizedCode = roomCode.toUpperCase();
+    const clientId = getOrCreateClientId();
     // NOTE: setCredentials は room:joined 成功時に setRoomState 内で設定されるため、
     // ここでは呼ばない。失敗時に不正な reconnect を誘発するバグを防止。
-    socket.emit(C2S_EVENTS.ROOM_JOIN, { roomCode: normalizedCode, nickname });
+    socket.emit(C2S_EVENTS.ROOM_JOIN, { roomCode: normalizedCode, nickname, clientId });
   };
 
   /** 参加ボタン無効化条件: 送信中、またはニックネーム重複が検出されている */

@@ -553,4 +553,95 @@ describe("RoomAggregate", () => {
             expect(room.isNicknameAvailable("BOB")).toBe(true);
         });
     });
+
+    // ----------------------------------------------------------
+    // clientId による重複参加チェック
+    // ----------------------------------------------------------
+
+    describe("hasConnectedClientId", () => {
+        it("接続中の参加者に同一 clientId があれば true を返す", () => {
+            room.addParticipant("Bob", "socket-bob", -1, "client-123");
+            expect(room.hasConnectedClientId("client-123")).toBe(true);
+        });
+
+        it("clientId が一致する参加者がいなければ false を返す", () => {
+            room.addParticipant("Bob", "socket-bob", -1, "client-123");
+            expect(room.hasConnectedClientId("client-999")).toBe(false);
+        });
+
+        it("切断中の参加者の clientId は対象外（false）", () => {
+            const bob = room.addParticipant("Bob", "socket-bob", -1, "client-123");
+            room.disconnectParticipant(bob.id);
+            expect(room.hasConnectedClientId("client-123")).toBe(false);
+        });
+
+        it("clientId が未設定の参加者は対象外", () => {
+            room.addParticipant("Bob", "socket-bob");
+            expect(room.hasConnectedClientId("client-123")).toBe(false);
+        });
+
+        it("Host の clientId も検出する", () => {
+            const roomWithClientId = RoomAggregate.create("XYZ789", "Alice", "socket-host", "client-host");
+            expect(roomWithClientId.hasConnectedClientId("client-host")).toBe(true);
+        });
+    });
+
+    describe("addParticipant（clientId 重複チェック）", () => {
+        it("同一 clientId の接続中参加者がいる場合 DUPLICATE_CLIENT をスローする", () => {
+            room.addParticipant("Bob", "socket-bob", -1, "client-123");
+            try {
+                room.addParticipant("Carol", "socket-carol", -1, "client-123");
+                expect.fail("should have thrown");
+            } catch (e) {
+                expect(e).toBeInstanceOf(RoomDomainError);
+                expect((e as RoomDomainError).code).toBe("DUPLICATE_CLIENT");
+            }
+        });
+
+        it("Host と同じ clientId で参加しようとすると DUPLICATE_CLIENT をスローする", () => {
+            const roomWithClientId = RoomAggregate.create("XYZ789", "Alice", "socket-host", "client-host");
+            try {
+                roomWithClientId.addParticipant("Bob", "socket-bob", -1, "client-host");
+                expect.fail("should have thrown");
+            } catch (e) {
+                expect(e).toBeInstanceOf(RoomDomainError);
+                expect((e as RoomDomainError).code).toBe("DUPLICATE_CLIENT");
+            }
+        });
+
+        it("切断中の参加者と同じ clientId なら参加できる", () => {
+            const bob = room.addParticipant("Bob", "socket-bob", -1, "client-123");
+            room.disconnectParticipant(bob.id);
+            const carol = room.addParticipant("Carol", "socket-carol", -1, "client-123");
+            expect(carol.nickname).toBe("Carol");
+            expect(carol.clientId).toBe("client-123");
+        });
+
+        it("clientId を省略した場合は重複チェックをスキップする", () => {
+            room.addParticipant("Bob", "socket-bob", -1, "client-123");
+            // clientId 省略 → DUPLICATE_CLIENT にはならない
+            const carol = room.addParticipant("Carol", "socket-carol");
+            expect(carol.nickname).toBe("Carol");
+        });
+    });
+
+    describe("reconnectParticipant（clientId 更新）", () => {
+        it("再接続時に clientId を更新する", () => {
+            const bob = room.addParticipant("Bob", "socket-bob", -1, "old-client");
+            room.disconnectParticipant(bob.id);
+
+            const reconnected = room.reconnectParticipant("Bob", "socket-bob-new", "new-client");
+            expect(reconnected).not.toBeNull();
+            expect(reconnected!.clientId).toBe("new-client");
+        });
+
+        it("clientId を省略して再接続しても既存の clientId は保持される", () => {
+            const bob = room.addParticipant("Bob", "socket-bob", -1, "client-123");
+            room.disconnectParticipant(bob.id);
+
+            const reconnected = room.reconnectParticipant("Bob", "socket-bob-new");
+            expect(reconnected).not.toBeNull();
+            expect(reconnected!.clientId).toBe("client-123");
+        });
+    });
 });

@@ -11,10 +11,34 @@
 
 const STORAGE_KEY = "self-intro-quiz:session";
 
+/** clientId を永続化するキー。ブラウザ単位で固定。 */
+const CLIENT_ID_KEY = "self-intro-quiz:clientId";
+
 /** localStorage に保存するセッション情報 */
 interface SessionData {
     roomCode: string;
     nickname: string;
+}
+
+/**
+ * ブラウザ単位の一意識別子を取得する。
+ * 未生成の場合は crypto.randomUUID() で生成し localStorage に永続化する。
+ * 同一ブラウザの複数タブから同じルームに重複参加することを防止するために使用。
+ *
+ * @returns UUID v4 形式の clientId
+ */
+export function getOrCreateClientId(): string {
+    try {
+        const existing = localStorage.getItem(CLIENT_ID_KEY);
+        if (existing) return existing;
+
+        const newId = crypto.randomUUID();
+        localStorage.setItem(CLIENT_ID_KEY, newId);
+        return newId;
+    } catch {
+        // localStorage が無効な環境では毎回新規生成（重複チェック不可だが動作は継続）
+        return crypto.randomUUID();
+    }
 }
 
 /**
