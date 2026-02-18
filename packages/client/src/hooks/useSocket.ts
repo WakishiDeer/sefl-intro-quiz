@@ -166,7 +166,9 @@ export function useSocket(): void {
                 useQuizStore.getState().reset();
                 navigate("/");
             }
-            // TODO: Toast 通知の実装
+            // NICKNAME_TAKEN / ROOM_FULL 等の参加エラーは JoinRoomPage のローカルリスナーで
+            // UI 表示を処理する。ここではログ出力のみ。
+            // TODO: Toast 通知を実装すれば、RoomPage 内でのエラーも視覚的に通知可能
             console.error(`[room:error] ${payload.code}: ${payload.message}`);
         };
 

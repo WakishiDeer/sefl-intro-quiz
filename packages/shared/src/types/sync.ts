@@ -224,3 +224,15 @@ export interface RoomSummary {
 export interface RoomListPayload {
     rooms: RoomSummary[];
 }
+
+// ニックネーム重複チェック
+export interface CheckNicknamePayload {
+    roomCode: string;
+    nickname: string;
+}
+
+export interface NicknameResultPayload {
+    available: boolean;
+    roomCode: string;
+    nickname: string;
+}

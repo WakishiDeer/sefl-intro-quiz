@@ -104,11 +104,9 @@ export class RoomAggregate {
             throw new RoomDomainError("ROOM_FULL", "ルームが満員です");
         }
 
-        // ニックネーム重複チェック（接続中の参加者のみ対象）
-        for (const p of this.room.participants.values()) {
-            if (p.nickname === nickname && p.isConnected) {
-                throw new RoomDomainError("NICKNAME_TAKEN", "このニックネームは既に使われています");
-            }
+        // ニックネーム重複チェック（接続中の参加者のみ対象、case-insensitive）
+        if (!this.isNicknameAvailable(nickname)) {
+            throw new RoomDomainError("NICKNAME_TAKEN", "このニックネームは既に使われています");
         }
 
         const participantId = uuidv4();
@@ -162,12 +160,14 @@ export class RoomAggregate {
 
     /**
      * 切断中の同名参加者を探して再接続する。
+     * 大文字・小文字を区別しない（case-insensitive）。
      *
      * @returns 再接続された Participant。見つからなければ null
      */
     reconnectParticipant(nickname: string, newSocketId: string): Participant | null {
+        const lowerNickname = nickname.toLowerCase();
         for (const p of this.room.participants.values()) {
-            if (p.nickname === nickname && !p.isConnected) {
+            if (p.nickname.toLowerCase() === lowerNickname && !p.isConnected) {
                 p.socketId = newSocketId;
                 p.isConnected = true;
                 this.room.lastActivityAt = Date.now();
@@ -270,6 +270,22 @@ export class RoomAggregate {
     /** 接続中の参加者一覧 */
     getConnectedParticipants(): Participant[] {
         return Array.from(this.room.participants.values()).filter((p) => p.isConnected);
+    }
+
+    /**
+     * 指定ニックネームが使用可能かチェックする。
+     * 接続中の参加者に対して case-insensitive で比較する。
+     *
+     * @returns 使用可能なら true、重複なら false
+     */
+    isNicknameAvailable(nickname: string): boolean {
+        const lowerNickname = nickname.toLowerCase();
+        for (const p of this.room.participants.values()) {
+            if (p.nickname.toLowerCase() === lowerNickname && p.isConnected) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** プロフィール入力済みの参加者数 */

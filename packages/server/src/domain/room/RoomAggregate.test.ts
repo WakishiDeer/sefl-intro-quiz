@@ -94,6 +94,19 @@ describe("RoomAggregate", () => {
             }
         });
 
+        it("大文字・小文字違いのニックネームも重複とみなす（case-insensitive）", () => {
+            expect(() => room.addParticipant("alice", "socket-2")).toThrow(
+                RoomDomainError,
+            );
+            try {
+                room.addParticipant("ALICE", "socket-3");
+                expect.fail("should have thrown");
+            } catch (e) {
+                expect(e).toBeInstanceOf(RoomDomainError);
+                expect((e as RoomDomainError).code).toBe("NICKNAME_TAKEN");
+            }
+        });
+
         it("切断中の参加者と同名なら追加できる", () => {
             const bob = room.addParticipant("Bob", "socket-bob");
             room.disconnectParticipant(bob.id);
@@ -152,6 +165,16 @@ describe("RoomAggregate", () => {
             const reconnected = room.reconnectParticipant("Bob", "socket-bob-new");
             expect(reconnected).not.toBeNull();
             expect(reconnected!.socketId).toBe("socket-bob-new");
+            expect(reconnected!.isConnected).toBe(true);
+        });
+
+        it("大文字・小文字違いでも再接続できる（case-insensitive）", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            room.disconnectParticipant(bob.id);
+
+            const reconnected = room.reconnectParticipant("bob", "socket-bob-new");
+            expect(reconnected).not.toBeNull();
+            expect(reconnected!.nickname).toBe("Bob"); // 元のニックネームが保持される
             expect(reconnected!.isConnected).toBe(true);
         });
 
@@ -288,6 +311,39 @@ describe("RoomAggregate", () => {
 
         it("存在しない socketId では undefined を返す", () => {
             expect(room.findBySocketId("nonexistent")).toBeUndefined();
+        });
+    });
+
+    // ----------------------------------------------------------
+    // ニックネーム重複チェック
+    // ----------------------------------------------------------
+
+    describe("isNicknameAvailable", () => {
+        it("未使用のニックネームなら true を返す", () => {
+            expect(room.isNicknameAvailable("Bob")).toBe(true);
+        });
+
+        it("使用中のニックネームなら false を返す", () => {
+            expect(room.isNicknameAvailable("Alice")).toBe(false);
+        });
+
+        it("大文字・小文字違いでも false を返す（case-insensitive）", () => {
+            expect(room.isNicknameAvailable("alice")).toBe(false);
+            expect(room.isNicknameAvailable("ALICE")).toBe(false);
+            expect(room.isNicknameAvailable("aLiCe")).toBe(false);
+        });
+
+        it("切断中の参加者のニックネームは使用可能（true）", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            room.disconnectParticipant(bob.id);
+            expect(room.isNicknameAvailable("Bob")).toBe(true);
+        });
+
+        it("切断中の参加者のニックネームは case-insensitive でも使用可能", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            room.disconnectParticipant(bob.id);
+            expect(room.isNicknameAvailable("bob")).toBe(true);
+            expect(room.isNicknameAvailable("BOB")).toBe(true);
         });
     });
 });

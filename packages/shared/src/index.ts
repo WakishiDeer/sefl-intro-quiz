@@ -41,6 +41,8 @@ export type {
     RoomSummary,
     RoomSummaryParticipant,
     RoomListPayload,
+    CheckNicknamePayload,
+    NicknameResultPayload,
 } from "./types/index.js";
 
 // 定数
@@ -84,6 +86,7 @@ export {
     CreateRoomSchema,
     JoinRoomSchema,
     SubmitProfileSchema,
+    CheckNicknameSchema,
     SubmitAnswerSchema,
     AIQuestionSchema,
     AIOutputSchema,
@@ -96,6 +99,7 @@ export type {
     CreateRoomInput,
     JoinRoomInput,
     SubmitProfileInput,
+    CheckNicknameInput,
     SubmitAnswerInput,
     AIQuestionOutput,
     AIOutput,

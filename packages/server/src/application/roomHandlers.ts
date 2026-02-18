@@ -11,6 +11,7 @@ import {
     S2C_EVENTS,
     CreateRoomSchema,
     JoinRoomSchema,
+    CheckNicknameSchema,
     SubmitProfileSchema,
     HOST_RECONNECT_GRACE_MS,
     MAX_PARTICIPANTS,
@@ -25,6 +26,7 @@ import type {
     HostChangedPayload,
     ProfileUpdatedPayload,
     RoomErrorPayload,
+    NicknameResultPayload,
     Participant,
     RoomSummary,
     RoomListPayload,
@@ -218,6 +220,41 @@ export function registerRoomHandlers(
     socket.on(C2S_EVENTS.ROOM_LIST_UNSUBSCRIBE, () => {
         void socket.leave(ROOM_LIST_META_ROOM);
         logger.info({ socketId: socket.id }, "Room list unsubscribed");
+    });
+
+    // ----------------------------------------------------------
+    // room:check-nickname——ニックネーム重複チェック（参加前の事前確認）
+    // ルームに join していなくても発行可能な読み取り専用チェック。
+    // ----------------------------------------------------------
+    socket.on(C2S_EVENTS.ROOM_CHECK_NICKNAME, (payload: unknown) => {
+        try {
+            const parsed = CheckNicknameSchema.parse(payload);
+            const roomCode = parsed.roomCode.toUpperCase();
+            const nickname = parsed.nickname;
+
+            const room = roomRepo.findByCode(roomCode);
+            if (!room) {
+                // ルームが存在しない場合は available: false（参加自体が失敗するため）
+                socket.emit(S2C_EVENTS.ROOM_NICKNAME_RESULT, {
+                    available: false,
+                    roomCode,
+                    nickname,
+                } satisfies NicknameResultPayload);
+                return;
+            }
+
+            const roomAgg = RoomAggregate.fromRoom(room);
+            const available = roomAgg.isNicknameAvailable(nickname);
+
+            socket.emit(S2C_EVENTS.ROOM_NICKNAME_RESULT, {
+                available,
+                roomCode,
+                nickname,
+            } satisfies NicknameResultPayload);
+        } catch (error) {
+            // バリデーションエラー等は無視（事前チェックなのでエラー通知不要）
+            logger.debug({ error, socketId: socket.id }, "check-nickname validation failed");
+        }
     });
 
     // ----------------------------------------------------------

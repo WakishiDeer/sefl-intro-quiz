@@ -21,6 +21,7 @@
 | `room:close` | Host | `{}` | ルームを閉じる |
 | `room:list-subscribe` | Any | `{}` | ルーム一覧のリアルタイム購読開始 |
 | `room:list-unsubscribe` | Any | `{}` | ルーム一覧の購読解除 |
+| `room:check-nickname` | Any | `{ roomCode: string, nickname: string }` | ニックネーム重複事前チェック |
 
 ### Server → Client
 
@@ -42,6 +43,7 @@
 | `question:reveal` | Room | `QuestionRevealPayload` | 正解発表 |
 | `quiz:finished` | Room | `QuizFinishedPayload` | 全問終了・最終結果 |
 | `room:list` | Subscribers | `RoomListPayload` | ルーム一覧（リアルタイム更新） |
+| `room:nickname-result` | Sender | `{ available: boolean, roomCode: string, nickname: string }` | ニックネーム重複チェック結果 |
 
 ---
 
@@ -82,6 +84,28 @@ interface RoomListPayload {
   rooms: RoomSummary[];
 }
 ```
+
+### CheckNicknamePayload / NicknameResultPayload
+
+```typescript
+// Client → Server
+interface CheckNicknamePayload {
+  roomCode: string;   // 6文字英数大文字
+  nickname: string;   // 2〜12文字
+}
+
+// Server → Client
+interface NicknameResultPayload {
+  available: boolean;  // true = 使用可能, false = 重複
+  roomCode: string;
+  nickname: string;
+}
+```
+
+- ルームに join していなくても発行可能な読み取り専用チェック
+- ルームが存在しない場合は `available: false` を返す（参加自体が失敗するため）
+- 比較は case-insensitive（`"Alice"` と `"alice"` は重複扱い）
+- 切断中の参加者は重複対象外（再接続扱いになるため）
 
 ### RoomStateSync
 

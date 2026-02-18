@@ -44,4 +44,6 @@ export type {
     RoomSummary,
     RoomSummaryParticipant,
     RoomListPayload,
+    CheckNicknamePayload,
+    NicknameResultPayload,
 } from "./sync.js";

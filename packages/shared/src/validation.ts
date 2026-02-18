@@ -69,6 +69,12 @@ export const SubmitProfileSchema = z.object({
     profile: ProfileSchema,
 });
 
+/** room:check-nickname ペイロード */
+export const CheckNicknameSchema = z.object({
+    roomCode: RoomCodeSchema,
+    nickname: NicknameSchema,
+});
+
 /** question:answer ペイロード */
 export const SubmitAnswerSchema = z.object({
     questionIndex: z.number().int().min(0).max(9),
@@ -118,6 +124,7 @@ export type ProfileInput = z.infer<typeof ProfileSchema>;
 export type CreateRoomInput = z.infer<typeof CreateRoomSchema>;
 export type JoinRoomInput = z.infer<typeof JoinRoomSchema>;
 export type SubmitProfileInput = z.infer<typeof SubmitProfileSchema>;
+export type CheckNicknameInput = z.infer<typeof CheckNicknameSchema>;
 export type SubmitAnswerInput = z.infer<typeof SubmitAnswerSchema>;
 export type AIQuestionOutput = z.infer<typeof AIQuestionSchema>;
 export type AIOutput = z.infer<typeof AIOutputSchema>;
