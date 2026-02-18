@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 
 ### Fixed
 
+- 存在しないルームコードでニックネーム重複チェックを行うと、常に「このニックネームは既に使われています」と表示されていたバグを修正。`NicknameResultPayload` に `reason` フィールドを追加し、ルーム不在時は「ルームが見つかりません」を表示するよう改善
 - `AIOutputJsonSchema` の `zodToJsonSchema` 呼び出しで `name` オプションを指定していたため、生成されるスキーマが `definitions` ラッパーで包まれ、トップレベルに `type: "object"` が存在しなかった。Anthropic API は `input_schema.type` を必須フィールドとするため `400 invalid_request_error` が発生していた。`name` オプション除去とフラットスキーマ生成に修正し、`$schema` メタキーも除去
 - 全フィールド空のプロフィールでクイズ生成が可能になっていた問題を修正。`ProfileSchema` に `.refine()` で最低1フィールド非空バリデーション追加、`RoomAggregate.getProfileSubmittedCount()` で空プロフィール除外、`ClaudeQuizGenerator.buildUserPrompt()` で空フィールド省略、`ProfileForm` にサーバ側エラーのフィードバック表示を追加
 

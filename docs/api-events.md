@@ -96,14 +96,16 @@ interface CheckNicknamePayload {
 
 // Server → Client
 interface NicknameResultPayload {
-  available: boolean;  // true = 使用可能, false = 重複
+  available: boolean;  // true = 使用可能, false = 重複 or ルーム不在
   roomCode: string;
   nickname: string;
+  reason?: "ROOM_NOT_FOUND" | "NICKNAME_TAKEN";  // available: false の理由
 }
 ```
 
 - ルームに join していなくても発行可能な読み取り専用チェック
-- ルームが存在しない場合は `available: false` を返す（参加自体が失敗するため）
+- ルームが存在しない場合は `available: false, reason: "ROOM_NOT_FOUND"` を返す
+- ニックネーム重複の場合は `available: false, reason: "NICKNAME_TAKEN"` を返す
 - 比較は case-insensitive（`"Alice"` と `"alice"` は重複扱い）
 - 切断中の参加者は重複対象外（再接続扱いになるため）
 

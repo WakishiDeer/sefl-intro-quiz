@@ -66,13 +66,22 @@ export function JoinRoomPage() {
       const currentNick = nicknameRef.current;
       if (payload.roomCode === currentCode && payload.nickname.toLowerCase() === currentNick.toLowerCase()) {
         if (!payload.available) {
-          setIsNicknameTaken(true);
-          setError("このニックネームは既に使われています");
+          if (payload.reason === "ROOM_NOT_FOUND") {
+            // ルームが存在しない場合はニックネーム重複ではなく、ルーム不在を通知
+            setIsNicknameTaken(false);
+            setError("ルームが見つかりません");
+          } else {
+            // ニックネーム重複
+            setIsNicknameTaken(true);
+            setError("このニックネームは既に使われています");
+          }
         } else {
           setIsNicknameTaken(false);
           // 他のエラー（Zod バリデーション等）がなければクリア
           setError((prev) =>
-            prev === "このニックネームは既に使われています" ? null : prev,
+            prev === "このニックネームは既に使われています" || prev === "ルームが見つかりません"
+              ? null
+              : prev,
           );
         }
       }

@@ -234,11 +234,12 @@ export function registerRoomHandlers(
 
             const room = roomRepo.findByCode(roomCode);
             if (!room) {
-                // ルームが存在しない場合は available: false（参加自体が失敗するため）
+                // ルームが存在しない場合は reason で区別し、クライアントが適切なメッセージを表示
                 socket.emit(S2C_EVENTS.ROOM_NICKNAME_RESULT, {
                     available: false,
                     roomCode,
                     nickname,
+                    reason: "ROOM_NOT_FOUND",
                 } satisfies NicknameResultPayload);
                 return;
             }
@@ -250,6 +251,7 @@ export function registerRoomHandlers(
                 available,
                 roomCode,
                 nickname,
+                ...(!available ? { reason: "NICKNAME_TAKEN" as const } : {}),
             } satisfies NicknameResultPayload);
         } catch (error) {
             // バリデーションエラー等は無視（事前チェックなのでエラー通知不要）

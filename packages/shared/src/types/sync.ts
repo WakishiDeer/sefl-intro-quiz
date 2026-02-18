@@ -235,4 +235,6 @@ export interface NicknameResultPayload {
     available: boolean;
     roomCode: string;
     nickname: string;
+    /** available: false の理由。ルーム不在 or ニックネーム重複 */
+    reason?: "ROOM_NOT_FOUND" | "NICKNAME_TAKEN";
 }
