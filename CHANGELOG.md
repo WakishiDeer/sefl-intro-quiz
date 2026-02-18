@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 - CHANGELOG.md 作成
 - ADR テンプレートおよび ADR-0001（DDD + Ports & Adapters）、ADR-0002（Claude API 採用）作成
 - `.env.example`、`.gitignore`、`README.md` 作成
+- **Phase 0**: npm workspaces によるモノレポ構成（shared / server / client）
+- **Phase 1**: 共有型定義・定数・Zod バリデーションスキーマ（`@self-intro-quiz/shared`）
+- **Phase 2**: ドメイン層 — `RoomAggregate` / `QuizAggregate` / Port インターフェース
+- **Phase 3**: インフラ層 — `InMemoryRoomRepository` / `InMemoryQuizRepository` / `ClaudeQuizGenerator` / `NodeTimerService` / ユーティリティ
+- **Phase 4**: アプリケーション層 — Socket.IO イベントハンドラ（`roomHandlers` / `quizHandlers`）/ Express サーバエントリポイント
+- **Phase 5**: クライアント基盤 — Socket.IO クライアント / Zustand ストア（`useRoomStore` / `useQuizStore`）/ カスタムフック（`useSocket` / `useTimer`）
+- **Phase 6**: クライアント UI — ページ（Top / CreateRoom / JoinRoom / Room）/ コンポーネント（ProfileForm / ParticipantList / LobbyView / QuizView / ResultView 等 11 コンポーネント）
+- **Phase 7**: ユニットテスト — RoomAggregate (27 tests) / QuizAggregate (21 tests) / InMemoryRoomRepository (7 tests) / InMemoryQuizRepository (3 tests) / roomCode (3 tests) / sanitize (6 tests) / Zod validation (22 tests) — 計 89 テスト全パス
 
 ### Changed
 

@@ -28,14 +28,42 @@
 
 ## プロジェクト構成
 
-```
-packages/
-├── shared/    # 共有型定義・定数・イベント名
-├── server/    # Express + Socket.IO サーバ
-│   ├── domain/          # Aggregate・Port インターフェース
-│   ├── application/     # イベントハンドラ
-│   └── infrastructure/  # InMemory実装・Claude API・Timer
-└── client/    # React SPA
+```text
+wdp-self-intro-quiz/
+├── .env.example               # 環境変数テンプレート
+├── package.json               # npm workspaces ルート
+├── tsconfig.base.json         # 共通 TypeScript 設定
+├── docs/                      # ドキュメント
+│   ├── prd.md
+│   ├── technical-design.md
+│   ├── api-events.md
+│   ├── tech-spec.md
+│   └── adr/
+└── packages/
+    ├── shared/                # 共有型定義・定数・バリデーション
+    │   └── src/
+    │       ├── types/          # room.ts / quiz.ts / profile.ts / sync.ts
+    │       ├── constants.ts
+    │       ├── events.ts
+    │       ├── validation.ts
+    │       └── index.ts
+    ├── server/                # Express + Socket.IO サーバ
+    │   └── src/
+    │       ├── index.ts           # エントリポイント（DI 組み立て）
+    │       ├── domain/
+    │       │   ├── room/          # RoomAggregate / RoomRepository (Port)
+    │       │   └── quiz/          # QuizAggregate / QuizGenerator / QuizRepository (Port)
+    │       ├── application/       # roomHandlers / quizHandlers
+    │       ├── infrastructure/    # InMemory実装 / ClaudeQuizGenerator / NodeTimerService
+    │       └── utils/             # roomCode / sanitize / logger
+    └── client/                # React SPA
+        └── src/
+            ├── main.tsx / App.tsx / index.css
+            ├── pages/         # TopPage / CreateRoomPage / JoinRoomPage / RoomPage
+            ├── components/    # ProfileForm / ParticipantList / LobbyView / QuizView / ResultView 等
+            ├── stores/        # useRoomStore / useQuizStore (Zustand)
+            ├── hooks/         # useSocket / useTimer
+            └── lib/           # socket.ts (Socket.IO クライアント)
 ```
 
 ## セットアップ
@@ -48,8 +76,18 @@ npm install
 cp .env.example .env
 # .env に ANTHROPIC_API_KEY を設定
 
-# 開発サーバ起動
+# 開発サーバ起動（サーバ + クライアント同時起動）
 npm run dev
+
+# 個別起動
+npm run dev:server   # Express + Socket.IO (PORT=3002)
+npm run dev:client   # Vite (http://localhost:5173)
+
+# テスト
+npm test
+
+# ビルド
+npm run build
 ```
 
 ## ドキュメント

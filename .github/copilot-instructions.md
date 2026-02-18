@@ -49,26 +49,32 @@ packages/
 
 ```
 packages/server/src/
+├── index.ts               # エントリポイント（DI 組み立て）
 ├── domain/                # ドメイン層（外部依存なし）
 │   ├── room/
 │   │   ├── RoomAggregate.ts
+│   │   ├── RoomAggregate.test.ts
 │   │   └── RoomRepository.ts    # Port (interface)
 │   └── quiz/
 │       ├── QuizAggregate.ts
+│       ├── QuizAggregate.test.ts
 │       ├── QuizGenerator.ts      # Port (interface)
 │       └── QuizRepository.ts     # Port (interface)
 ├── application/           # アプリケーション層（イベントハンドラ）
 │   ├── roomHandlers.ts
-│   ├── quizHandlers.ts
-│   └── middleware.ts
+│   └── quizHandlers.ts
 ├── infrastructure/        # インフラ層（Port の実装）
 │   ├── InMemoryRoomRepository.ts
+│   ├── InMemoryRoomRepository.test.ts
 │   ├── InMemoryQuizRepository.ts
+│   ├── InMemoryQuizRepository.test.ts
 │   ├── ClaudeQuizGenerator.ts
 │   └── NodeTimerService.ts
 └── utils/
     ├── roomCode.ts
+    ├── roomCode.test.ts
     ├── sanitize.ts
+    ├── sanitize.test.ts
     └── logger.ts
 ```
 

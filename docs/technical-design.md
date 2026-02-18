@@ -26,78 +26,96 @@
 
 ```
 wdp-self-intro-quiz/
+├── .env.example                   # 環境変数テンプレート
+├── package.json                   # npm workspaces ルート
+├── tsconfig.base.json             # 共通 TypeScript 設定
 ├── docs/                          # ドキュメント
 │   ├── prd.md
 │   ├── technical-design.md
 │   ├── api-events.md
-│   └── tech-spec.md
+│   ├── tech-spec.md
+│   └── adr/                       # Architecture Decision Records
+│       ├── template.md
+│       ├── 0001-ddd-ports-adapters-architecture.md
+│       └── 0002-claude-api-adoption.md
 ├── packages/
-│   ├── shared/                    # 共有型定義・定数
+│   ├── shared/                    # 共有型定義・定数・バリデーション
 │   │   ├── src/
 │   │   │   ├── types/
-│   │   │   │   ├── room.ts        # RoomPhase, Participant, Room
-│   │   │   │   ├── quiz.ts        # Quiz, Question, Answer, ScoreEntry
-│   │   │   │   ├── profile.ts     # Profile
-│   │   │   │   └── sync.ts        # RoomStateSync, Payloads
+│   │   │   │   ├── index.ts       # 型の barrel re-export
+│   │   │   │   ├── room.ts       # RoomPhase, Participant, Room
+│   │   │   │   ├── quiz.ts       # Quiz, Question, Answer, ScoreEntry
+│   │   │   │   ├── profile.ts    # Profile
+│   │   │   │   └── sync.ts       # RoomStateSync, Payloads
 │   │   │   ├── constants.ts       # マジックナンバー定義
-│   │   │   ├── events.ts          # Socket.IO イベント名定義
+│   │   │   ├── events.ts          # Socket.IO イベント名定義（C2S_EVENTS / S2C_EVENTS）
 │   │   │   ├── validation.ts      # Zod スキーマ
-│   │   │   └── index.ts
+│   │   │   ├── validation.test.ts # バリデーションテスト
+│   │   │   └── index.ts           # barrel re-export
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   ├── server/                    # Express + Socket.IO サーバ
 │   │   ├── src/
 │   │   │   ├── index.ts               # エントリポイント（DI 組み立て）
-│   │   │   ├── domain/                # ドメイン層
+│   │   │   ├── domain/                # ドメイン層（外部依存なし）
 │   │   │   │   ├── room/
-│   │   │   │   │   ├── RoomAggregate.ts   # Room 集約（ドメインロジック）
-│   │   │   │   │   └── RoomRepository.ts  # Port（インターフェース）
+│   │   │   │   │   ├── RoomAggregate.ts      # Room 集約
+│   │   │   │   │   ├── RoomAggregate.test.ts
+│   │   │   │   │   └── RoomRepository.ts    # Port（インターフェース）
 │   │   │   │   └── quiz/
-│   │   │   │       ├── QuizAggregate.ts   # Quiz 集約（ドメインロジック）
-│   │   │   │       ├── QuizGenerator.ts   # Port（インターフェース）
-│   │   │   │       └── QuizRepository.ts  # Port（インターフェース）
+│   │   │   │       ├── QuizAggregate.ts      # Quiz 集約
+│   │   │   │       ├── QuizAggregate.test.ts
+│   │   │   │       ├── QuizGenerator.ts     # Port（インターフェース）
+│   │   │   │       └── QuizRepository.ts    # Port（インターフェース）
 │   │   │   ├── application/           # アプリケーション層
 │   │   │   │   ├── roomHandlers.ts    # Room 系イベントハンドラ
-│   │   │   │   ├── quizHandlers.ts    # Quiz 系イベントハンドラ
-│   │   │   │   └── middleware.ts      # 認証・バリデーション
-│   │   │   ├── infrastructure/        # インフラ層
+│   │   │   │   └── quizHandlers.ts    # Quiz 系イベントハンドラ
+│   │   │   ├── infrastructure/        # インフラ層（Port の実装）
 │   │   │   │   ├── InMemoryRoomRepository.ts
+│   │   │   │   ├── InMemoryRoomRepository.test.ts
 │   │   │   │   ├── InMemoryQuizRepository.ts
+│   │   │   │   ├── InMemoryQuizRepository.test.ts
 │   │   │   │   ├── ClaudeQuizGenerator.ts
 │   │   │   │   └── NodeTimerService.ts
 │   │   │   └── utils/
 │   │   │       ├── roomCode.ts        # Room Code 生成
+│   │   │       ├── roomCode.test.ts
 │   │   │       ├── sanitize.ts        # 入力サニタイズ
+│   │   │       ├── sanitize.test.ts
 │   │   │       └── logger.ts          # pino ロガー
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   └── client/                    # React SPA
+│       ├── index.html
+│       ├── vite.config.ts
 │       ├── src/
-│       │   ├── main.tsx
-│       │   ├── App.tsx
+│       │   ├── main.tsx               # エントリポイント
+│       │   ├── App.tsx                # ルーティング + useSocket
+│       │   ├── index.css              # Tailwind CSS v4
 │       │   ├── pages/
-│       │   │   ├── TopPage.tsx
-│       │   │   ├── CreateRoomPage.tsx
-│       │   │   ├── JoinRoomPage.tsx
-│       │   │   ├── LobbyPage.tsx
-│       │   │   ├── QuizPage.tsx
-│       │   │   └── ResultPage.tsx
+│       │   │   ├── TopPage.tsx         # ランディングページ
+│       │   │   ├── CreateRoomPage.tsx  # ルーム作成
+│       │   │   ├── JoinRoomPage.tsx    # ルーム参加
+│       │   │   └── RoomPage.tsx        # フェーズ切替（Lobby/Quiz/Result）
 │       │   ├── components/
-│       │   │   ├── ProfileForm.tsx
-│       │   │   ├── ParticipantList.tsx
-│       │   │   ├── QuestionCard.tsx
-│       │   │   ├── ChoiceButton.tsx
-│       │   │   ├── Timer.tsx
-│       │   │   ├── Scoreboard.tsx
-│       │   │   └── RoomCodeDisplay.tsx
+│       │   │   ├── LobbyView.tsx       # ロビー画面
+│       │   │   ├── QuizView.tsx        # クイズ進行画面
+│       │   │   ├── ResultView.tsx      # 最終結果画面
+│       │   │   ├── ProfileForm.tsx     # プロフィール入力フォーム
+│       │   │   ├── ParticipantList.tsx  # 参加者一覧
+│       │   │   ├── RoomCodeDisplay.tsx  # ルームコード表示
+│       │   │   ├── QuestionCard.tsx     # 問題カード
+│       │   │   ├── ChoiceButton.tsx     # 選択肢ボタン
+│       │   │   ├── Timer.tsx           # カウントダウンタイマー
+│       │   │   └── Scoreboard.tsx      # スコアボード
 │       │   ├── stores/
-│       │   │   ├── useRoomStore.ts
-│       │   │   └── useQuizStore.ts
+│       │   │   ├── useRoomStore.ts     # Room 状態管理 (Zustand)
+│       │   │   └── useQuizStore.ts     # Quiz 状態管理 (Zustand)
 │       │   ├── hooks/
-│       │   │   ├── useSocket.ts
-│       │   │   └── useTimer.ts
+│       │   │   ├── useSocket.ts        # Socket.IO イベントリスナー
+│       │   │   └── useTimer.ts         # rAF ベースタイマー
 │       │   └── lib/
-│       │       └── socket.ts          # Socket.IO クライアント初期化
+│       │       └── socket.ts           # Socket.IO クライアント初期化
 │       ├── index.html
 │       ├── package.json
 │       ├── tsconfig.json
