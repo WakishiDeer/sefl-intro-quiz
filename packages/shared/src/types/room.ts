@@ -47,7 +47,7 @@ export interface Participant {
 }
 
 // Profile は profile.ts から re-export するため import
-import type { Profile } from "./profile.js";
+import type { Profile, ProfileFieldDefinition } from "./profile.js";
 
 // ============================================================
 // Room — ルーム集約（サーバ内部用DTO）
@@ -66,6 +66,11 @@ export interface Room {
     phase: RoomPhase;
     /** key = participantId */
     participants: Map<string, Participant>;
+    /**
+     * ホストがカスタマイズしたプロフィール入力項目定義。
+     * 1〜10項目。デフォルトは DEFAULT_PROFILE_FIELDS。
+     */
+    profileFields: ProfileFieldDefinition[];
     /** Unix timestamp (ms) */
     createdAt: number;
     /** Unix timestamp (ms) — TTL 判定用 */

@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { InMemoryRoomRepository } from "./InMemoryRoomRepository.js";
 import type { Room } from "@self-intro-quiz/shared";
+import { DEFAULT_PROFILE_FIELDS } from "@self-intro-quiz/shared";
 
 function makeRoom(code: string): Room {
     return {
@@ -14,6 +15,7 @@ function makeRoom(code: string): Room {
         participants: new Map(),
         createdAt: Date.now(),
         lastActivityAt: Date.now(),
+        profileFields: [...DEFAULT_PROFILE_FIELDS],
     };
 }
 

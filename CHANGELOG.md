@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 
 ### Added
 
+- **カスタムプロフィール項目**: ホストがロビーフェーズでプロフィール入力項目を自由にカスタマイズ可能に（1〜10個）。項目の追加・削除・並び替え・ラベル編集に対応。フィールド構成が変わると全参加者のプロフィールが自動リセットされ再入力を促す
+  - `ProfileFieldDefinition` 型（id / label / placeholder）を `@self-intro-quiz/shared` に追加
+  - `Profile` 型を固定フィールドから `Record<string, string>` に変更（動的フィールド対応）
+  - `DEFAULT_PROFILE_FIELDS` デフォルト6項目（出身地・趣味・特技・好きな食べ物・意外な事実・自由記述）
+  - `createProfileSchema()` 動的バリデーションスキーマファクトリを追加
+  - `UpdateFieldsSchema` / `ProfileFieldDefinitionSchema` バリデーション追加
+  - `RoomAggregate.updateProfileFields()` メソッド追加（ホスト権限・フェーズ・項目数・ID重複チェック）
+  - `fields:update` (C2S) / `fields:updated` (S2C) Socket.IO イベント追加
+  - `ProfileFieldEditor` コンポーネント新規作成（ホスト専用モーダル）
+  - `ProfileForm` を動的フィールド対応に改修（`useRoomStore.profileFields` ベース）
+- **みんなで AI リクエスト**: ホスト発動で全参加者がプリセット選択 + 自由テキストでリクエストを送信し、AI がプロフィール項目を提案する機能
+  - `ProfileFieldSuggester` Port インターフェース（domain 層）
+  - `ClaudeProfileFieldSuggester` 実装（Claude tool_use / リトライ付き）
+  - `aiRequestHandlers` アプリケーション層ハンドラ（セッション管理・リクエスト収集・AI生成・採用）
+  - `ai-request:start` / `ai-request:submit` / `ai-request:finalize` / `ai-request:adopt` (C2S) イベント追加
+  - `ai-request:started` / `ai-request:status` / `ai-request:result` (S2C) イベント追加
+  - `AI_REQUEST_PRESETS` プリセット8種・`AI_REQUEST_MAX_FREE_TEXT` (200文字) ・`AI_REQUEST_TIMEOUT_MS` (60秒) 定数追加
+  - `AIRequestModal` コンポーネント新規作成（全参加者向けリクエスト送信UI）
+  - `AIRequestResultPanel` コンポーネント新規作成（ホスト向け提案確認・採用UI）
+  - `useRoomStore` に AI リクエスト状態管理を追加
+  - `useSocket` に `fields:updated` / `ai-request:*` イベントリスナー追加
+- `LobbyView` にホスト向け「📝 プロフィール項目を編集」「🤖 みんなで AI リクエスト」ボタンを追加
+
+### Fixed
+
+- **AI リクエストのキャンセル機能**: ホストが AI リクエスト収集中にキャンセルできるよう「❌ AI リクエストをキャンセル」ボタンを追加。キャンセル時は全参加者のセッションを終了しトースト通知を表示
+- **AI リクエストモーダルの閉じるボタン**: 全参加者（ホスト・クライアント）がモーダルを閉じられるよう改善。閉じてもセッションは継続し、状態が遷移（収集中→生成中→結果）するとモーダルが自動再表示される
+- **AI リクエスト生成中の視覚的フィードバック**: finalize 後にサーバから `ai-request:generating` イベントを送信し、全員のモーダルが「AI が考え中...」表示に切り替わるよう改善
+- **ホスト切断時の AI リクエスト自動キャンセル**: ホストがリロード等で切断した場合、進行中の AI リクエストセッションを全参加者に対して自動キャンセルするよう改善
+- **クイズ生成ボタンの状態表示**: 生成中はスピナー + 「クイズを生成中...」テキストに変化し disabled になるよう改善。プロフィール提出済み人数と最低必要人数（3人）を表示し、条件未充足時はボタンを disabled にする
+
+### Changed
+
+- `Profile` 型を `Record<string, string>` に変更（固定6フィールド → 動的フィールド）
+- `sanitizeProfile()` を動的キー対応に改修
+- `ClaudeQuizGenerator.generate()` に `profileFields` パラメータを追加しフィールドラベル解決を動的化
+- `QuizGenerator` Port の `generate()` シグネチャに `profileFields` パラメータを追加
+- デフォルトプロフィール項目のフィールド ID を camelCase から snake_case に変更（`favoriteFood` → `favorite_food` 等）
+- テスト計 198 件全パス（shared 55 + server 143）
+
+### Added (previous)
+
 - **ルーム退出ボタン**: ロビー画面に「ルームから退出する」ボタンを追加。全参加者（ホスト含む）が明示的にルームを離脱可能に。退出時はセッションをクリアしトップページへ遷移する
 - **切断タイムアウトによる参加者自動削除**: タブを閉じた（切断した）参加者を5分後にルームから完全削除する機能を追加。切断直後はグレー表示（再接続猶予あり）、タイムアウト後は参加者一覧から除去される
   - `DISCONNECT_REMOVE_TIMEOUT_MS` 定数を `@self-intro-quiz/shared` に追加（デフォルト5分）

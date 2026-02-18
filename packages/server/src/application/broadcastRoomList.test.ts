@@ -60,6 +60,7 @@ function makeRoom(
         participants: participantMap,
         createdAt: Date.now(),
         lastActivityAt: Date.now(),
+        profileFields: [],
     };
 }
 

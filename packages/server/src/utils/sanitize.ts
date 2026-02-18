@@ -20,14 +20,12 @@ export function sanitize(input: string): string {
 
 /**
  * Profile の全フィールドをサニタイズする。
+ * 動的フィールドに対応: Record<string, string> の各値をサニタイズ。
  */
 export function sanitizeProfile(profile: Profile): Profile {
-    return {
-        hometown: sanitize(profile.hometown),
-        hobbies: sanitize(profile.hobbies),
-        skills: sanitize(profile.skills),
-        favoriteFood: sanitize(profile.favoriteFood),
-        surprisingFact: sanitize(profile.surprisingFact),
-        freeText: sanitize(profile.freeText),
-    };
+    const sanitized: Profile = {};
+    for (const [key, value] of Object.entries(profile)) {
+        sanitized[key] = sanitize(value);
+    }
+    return sanitized;
 }

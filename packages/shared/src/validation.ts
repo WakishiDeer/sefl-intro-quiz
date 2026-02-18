@@ -14,7 +14,13 @@ import {
     MIN_PROFILE_FILLED_FIELDS,
     ROOM_CODE_LENGTH,
     MAX_CHOICES,
+    MIN_PROFILE_FIELDS,
+    MAX_PROFILE_FIELDS,
+    MAX_PROFILE_FIELD_LABEL_LENGTH,
+    MAX_PROFILE_FIELD_PLACEHOLDER_LENGTH,
+    AI_REQUEST_MAX_FREE_TEXT,
 } from "./constants.js";
+import type { ProfileFieldDefinition } from "./types/profile.js";
 
 // ============================================================
 // Nickname
@@ -42,8 +48,47 @@ export const RoomCodeSchema = z
 export const ProfileFieldSchema = z.string().max(MAX_PROFILE_FIELD_LENGTH).default("");
 
 /**
- * プロフィールスキーマ。
- * 最低1つのフィールドに非空の値が必要（全フィールド空白のみは拒否）。
+ * プロフィール項目定義のバリデーション。
+ * ホストが項目を編集する際に使用する。
+ */
+export const ProfileFieldDefinitionSchema = z.object({
+    id: z
+        .string()
+        .min(1, "項目IDは必須です")
+        .max(50, "項目IDは50文字以下")
+        .regex(/^[a-z][a-z0-9_]*$/, "項目IDは英小文字・数字・アンダースコアのみ（先頭は英小文字）"),
+    label: z
+        .string()
+        .min(1, "ラベルは必須です")
+        .max(MAX_PROFILE_FIELD_LABEL_LENGTH, `ラベルは${MAX_PROFILE_FIELD_LABEL_LENGTH}文字以下`),
+    placeholder: z
+        .string()
+        .max(MAX_PROFILE_FIELD_PLACEHOLDER_LENGTH, `プレースホルダーは${MAX_PROFILE_FIELD_PLACEHOLDER_LENGTH}文字以下`)
+        .default(""),
+});
+
+/**
+ * プロフィール項目定義の配列バリデーション。
+ * fields:update イベントのペイロードに使用。
+ */
+export const UpdateFieldsSchema = z.object({
+    fields: z
+        .array(ProfileFieldDefinitionSchema)
+        .min(MIN_PROFILE_FIELDS, `項目は${MIN_PROFILE_FIELDS}個以上必要です`)
+        .max(MAX_PROFILE_FIELDS, `項目は${MAX_PROFILE_FIELDS}個以下です`)
+        .refine(
+            (fields) => {
+                const ids = fields.map((f) => f.id);
+                return new Set(ids).size === ids.length;
+            },
+            { message: "項目IDが重複しています" },
+        ),
+});
+
+/**
+ * 固定フィールドの旧 ProfileSchema（後方互換用）。
+ * 新しいコードでは createProfileSchema() を使用すること。
+ * @deprecated createProfileSchema を使用してください
  */
 export const ProfileSchema = z.object({
     hometown: ProfileFieldSchema,
@@ -62,6 +107,30 @@ export const ProfileSchema = z.object({
         message: `少なくとも${MIN_PROFILE_FILLED_FIELDS}つのフィールドを入力してください`,
     },
 );
+
+/**
+ * 動的プロフィールフィールドに基づくバリデーションスキーマを生成する。
+ * ホストがカスタマイズした項目定義に応じて、対応するキーの Record<string, string> をバリデーション。
+ *
+ * @param fields - 現在のルームのプロフィール項目定義
+ * @returns 動的 Zod スキーマ
+ */
+export function createProfileSchema(fields: ProfileFieldDefinition[]) {
+    const shape: Record<string, z.ZodDefault<z.ZodString>> = {};
+    for (const field of fields) {
+        shape[field.id] = ProfileFieldSchema;
+    }
+    return z.object(shape).refine(
+        (data) => {
+            const values = Object.values(data);
+            const filledCount = values.filter((v) => typeof v === "string" && v.trim().length > 0).length;
+            return filledCount >= MIN_PROFILE_FILLED_FIELDS;
+        },
+        {
+            message: `少なくとも${MIN_PROFILE_FILLED_FIELDS}つのフィールドを入力してください`,
+        },
+    );
+}
 
 // ============================================================
 // Client → Server イベントペイロード
@@ -82,9 +151,9 @@ export const JoinRoomSchema = z.object({
     clientId: z.string().uuid().optional(),
 });
 
-/** profile:submit ペイロード */
+/** profile:submit ペイロード（動的フィールド対応） */
 export const SubmitProfileSchema = z.object({
-    profile: ProfileSchema,
+    profile: z.record(z.string(), ProfileFieldSchema),
 });
 
 /** room:check-nickname ペイロード */
@@ -97,6 +166,27 @@ export const CheckNicknameSchema = z.object({
 export const SubmitAnswerSchema = z.object({
     questionIndex: z.number().int().min(0).max(9),
     choiceIndex: z.number().int().min(0).max(MAX_CHOICES - 1),
+});
+
+// ============================================================
+// AI リクエスト バリデーション
+// ============================================================
+
+/** ai-request:submit ペイロード */
+export const AIRequestSubmitSchema = z.object({
+    presets: z.array(z.string().max(100)).max(10).default([]),
+    freeText: z.string().max(AI_REQUEST_MAX_FREE_TEXT).default(""),
+}).refine(
+    (data) => data.presets.length > 0 || data.freeText.trim().length > 0,
+    { message: "プリセットか自由テキストのどちらかを入力してください" },
+);
+
+/** ai-request:adopt ペイロード（ホストが AI 提案を採用する際） */
+export const AIRequestAdoptSchema = z.object({
+    fields: z
+        .array(ProfileFieldDefinitionSchema)
+        .min(MIN_PROFILE_FIELDS, `項目は${MIN_PROFILE_FIELDS}個以上必要です`)
+        .max(MAX_PROFILE_FIELDS, `項目は${MAX_PROFILE_FIELDS}個以下です`),
 });
 
 // ============================================================

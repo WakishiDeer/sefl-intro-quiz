@@ -11,8 +11,9 @@ import type {
     RoomPhase,
     Participant,
     Profile,
+    ProfileFieldDefinition,
 } from "@self-intro-quiz/shared";
-import { MAX_PARTICIPANTS } from "@self-intro-quiz/shared";
+import { MAX_PARTICIPANTS, DEFAULT_PROFILE_FIELDS, MIN_PROFILE_FIELDS, MAX_PROFILE_FIELDS } from "@self-intro-quiz/shared";
 
 // ============================================================
 // ドメインエラー
@@ -77,6 +78,7 @@ export class RoomAggregate {
             hostId,
             phase: "lobby",
             participants,
+            profileFields: [...DEFAULT_PROFILE_FIELDS],
             createdAt: now,
             lastActivityAt: now,
         };
@@ -202,6 +204,57 @@ export class RoomAggregate {
     // ----------------------------------------------------------
     // プロフィール管理
     // ----------------------------------------------------------
+
+    /**
+     * プロフィール入力項目定義を更新する（Host 専用）。
+     *
+     * フィールド構成が変更された場合、全参加者のプロフィールを null にリセットして
+     * 再入力を促す。同一のフィールド構成であればリセットは行わない。
+     *
+     * @param fields - 新しいプロフィール項目定義（1〜10個）
+     * @param callerParticipantId - 操作者の participantId
+     * @returns profilesInvalidated - プロフィールがリセットされたかどうか
+     * @throws RoomDomainError NOT_HOST / INVALID_PHASE / INVALID_FIELDS
+     */
+    updateProfileFields(fields: ProfileFieldDefinition[], callerParticipantId: string): boolean {
+        if (!this.isHost(callerParticipantId)) {
+            throw new RoomDomainError("NOT_HOST", "ホストのみがプロフィール項目を編集できます");
+        }
+
+        if (this.room.phase !== "lobby") {
+            throw new RoomDomainError("INVALID_PHASE", "ロビーフェーズでのみ項目を編集できます");
+        }
+
+        if (fields.length < MIN_PROFILE_FIELDS || fields.length > MAX_PROFILE_FIELDS) {
+            throw new RoomDomainError(
+                "INVALID_FIELDS",
+                `項目数は${MIN_PROFILE_FIELDS}個以上${MAX_PROFILE_FIELDS}個以下です`,
+            );
+        }
+
+        // ID 重複チェック
+        const ids = fields.map((f) => f.id);
+        if (new Set(ids).size !== ids.length) {
+            throw new RoomDomainError("INVALID_FIELDS", "項目IDが重複しています");
+        }
+
+        // フィールド構成が変更されたか判定
+        const oldIds = this.room.profileFields.map((f) => f.id).sort().join(",");
+        const newIds = [...ids].sort().join(",");
+        const fieldsChanged = oldIds !== newIds;
+
+        this.room.profileFields = fields;
+        this.room.lastActivityAt = Date.now();
+
+        // フィールド構成が変わった場合、全参加者のプロフィールをリセット
+        if (fieldsChanged) {
+            for (const p of this.room.participants.values()) {
+                p.profile = null;
+            }
+        }
+
+        return fieldsChanged;
+    }
 
     /**
      * 参加者のプロフィールを更新する。
@@ -466,6 +519,11 @@ export class RoomAggregate {
             }
         }
         return undefined;
+    }
+
+    /** 現在のプロフィール項目定義 */
+    get profileFields(): ProfileFieldDefinition[] {
+        return this.room.profileFields;
     }
 
     /** 現在のフェーズ */

@@ -13,7 +13,14 @@ import {
     AIQuestionSchema,
     AIOutputSchema,
     AIOutputJsonSchema,
+    ProfileFieldDefinitionSchema,
+    createProfileSchema,
+    UpdateFieldsSchema,
+    AIRequestSubmitSchema,
+    AIRequestAdoptSchema,
 } from "./validation.js";
+import { DEFAULT_PROFILE_FIELDS, MAX_PROFILE_FIELDS } from "./constants.js";
+import type { ProfileFieldDefinition } from "./types/profile.js";
 
 // ============================================================
 // NicknameSchema
@@ -299,6 +306,226 @@ describe("AIOutputSchema", () => {
             subjectNickname: `User${i}`,
         }));
         const result = AIOutputSchema.safeParse({ questions });
+        expect(result.success).toBe(false);
+    });
+});
+
+// ============================================================
+// ProfileFieldDefinitionSchema
+// ============================================================
+
+describe("ProfileFieldDefinitionSchema", () => {
+    it("有効な項目定義を受け入れる", () => {
+        const result = ProfileFieldDefinitionSchema.safeParse({
+            id: "hometown",
+            label: "出身地",
+            placeholder: "例: 東京都",
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("placeholder を省略してもデフォルト空文字で受け入れる", () => {
+        const result = ProfileFieldDefinitionSchema.safeParse({
+            id: "field1",
+            label: "テスト",
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data.placeholder).toBe("");
+        }
+    });
+
+    it("ID が空の場合を拒否する", () => {
+        const result = ProfileFieldDefinitionSchema.safeParse({
+            id: "",
+            label: "テスト",
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it("ID が大文字を含む場合を拒否する", () => {
+        const result = ProfileFieldDefinitionSchema.safeParse({
+            id: "MyField",
+            label: "テスト",
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it("ID が数字で始まる場合を拒否する", () => {
+        const result = ProfileFieldDefinitionSchema.safeParse({
+            id: "1field",
+            label: "テスト",
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it("ID にハイフンを含む場合を拒否する", () => {
+        const result = ProfileFieldDefinitionSchema.safeParse({
+            id: "my-field",
+            label: "テスト",
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it("ラベルが空の場合を拒否する", () => {
+        const result = ProfileFieldDefinitionSchema.safeParse({
+            id: "field1",
+            label: "",
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it("ラベルが30文字を超える場合を拒否する", () => {
+        const result = ProfileFieldDefinitionSchema.safeParse({
+            id: "field1",
+            label: "A".repeat(31),
+        });
+        expect(result.success).toBe(false);
+    });
+});
+
+// ============================================================
+// createProfileSchema (動的プロフィールスキーマ)
+// ============================================================
+
+describe("createProfileSchema", () => {
+    const twoFields: ProfileFieldDefinition[] = [
+        { id: "name", label: "名前", placeholder: "" },
+        { id: "hobby", label: "趣味", placeholder: "" },
+    ];
+
+    it("定義されたフィールドに値があれば受け入れる", () => {
+        const schema = createProfileSchema(twoFields);
+        const result = schema.safeParse({
+            name: "Alice",
+            hobby: "Reading",
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("1フィールドのみ入力で受け入れる", () => {
+        const schema = createProfileSchema(twoFields);
+        const result = schema.safeParse({
+            name: "Alice",
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("全フィールド空だと拒否する", () => {
+        const schema = createProfileSchema(twoFields);
+        const result = schema.safeParse({
+            name: "",
+            hobby: "",
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it("デフォルトの PROFILE_FIELDS でスキーマを生成できる", () => {
+        const schema = createProfileSchema(DEFAULT_PROFILE_FIELDS);
+        const profile: Record<string, string> = {};
+        for (const f of DEFAULT_PROFILE_FIELDS) {
+            profile[f.id] = "";
+        }
+        profile["hometown"] = "Tokyo";
+        const result = schema.safeParse(profile);
+        expect(result.success).toBe(true);
+    });
+});
+
+// ============================================================
+// UpdateFieldsSchema
+// ============================================================
+
+describe("UpdateFieldsSchema", () => {
+    it("有効なフィールド配列を受け入れる", () => {
+        const result = UpdateFieldsSchema.safeParse({
+            fields: [
+                { id: "hometown", label: "出身地", placeholder: "" },
+                { id: "hobby", label: "趣味" },
+            ],
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("空配列を拒否する", () => {
+        const result = UpdateFieldsSchema.safeParse({ fields: [] });
+        expect(result.success).toBe(false);
+    });
+
+    it("MAX_PROFILE_FIELDS + 1 個の場合を拒否する", () => {
+        const fields = Array.from({ length: MAX_PROFILE_FIELDS + 1 }, (_, i) => ({
+            id: `f${i}`,
+            label: `F${i}`,
+        }));
+        const result = UpdateFieldsSchema.safeParse({ fields });
+        expect(result.success).toBe(false);
+    });
+
+    it("ID 重複を拒否する", () => {
+        const result = UpdateFieldsSchema.safeParse({
+            fields: [
+                { id: "same", label: "A" },
+                { id: "same", label: "B" },
+            ],
+        });
+        expect(result.success).toBe(false);
+    });
+});
+
+// ============================================================
+// AIRequestSubmitSchema
+// ============================================================
+
+describe("AIRequestSubmitSchema", () => {
+    it("プリセットのみで受け入れる", () => {
+        const result = AIRequestSubmitSchema.safeParse({
+            presets: ["もっと面白い質問にして"],
+            freeText: "",
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("自由テキストのみで受け入れる", () => {
+        const result = AIRequestSubmitSchema.safeParse({
+            presets: [],
+            freeText: "ペットに関する項目",
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("プリセットも自由テキストも空だと拒否する", () => {
+        const result = AIRequestSubmitSchema.safeParse({
+            presets: [],
+            freeText: "",
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it("自由テキストが200文字を超えると拒否する", () => {
+        const result = AIRequestSubmitSchema.safeParse({
+            presets: [],
+            freeText: "A".repeat(201),
+        });
+        expect(result.success).toBe(false);
+    });
+});
+
+// ============================================================
+// AIRequestAdoptSchema
+// ============================================================
+
+describe("AIRequestAdoptSchema", () => {
+    it("有効なフィールド配列を受け入れる", () => {
+        const result = AIRequestAdoptSchema.safeParse({
+            fields: [
+                { id: "pet", label: "ペット", placeholder: "例: 猫" },
+            ],
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("空の配列を拒否する", () => {
+        const result = AIRequestAdoptSchema.safeParse({ fields: [] });
         expect(result.success).toBe(false);
     });
 });

@@ -13,8 +13,10 @@ import {
     JoinRoomSchema,
     CheckNicknameSchema,
     SubmitProfileSchema,
+    UpdateFieldsSchema,
     MAX_PARTICIPANTS,
     DISCONNECT_REMOVE_TIMEOUT_MS,
+    createProfileSchema,
 } from "@self-intro-quiz/shared";
 import type {
     RoomStateSync,
@@ -25,6 +27,7 @@ import type {
     ParticipantLeftPayload,
     HostChangedPayload,
     ProfileUpdatedPayload,
+    FieldsUpdatedPayload,
     RoomErrorPayload,
     NicknameResultPayload,
     Participant,
@@ -38,6 +41,7 @@ import { QuizAggregate } from "../domain/quiz/QuizAggregate.js";
 import { NodeTimerService } from "../infrastructure/NodeTimerService.js";
 import { generateRoomCode } from "../utils/roomCode.js";
 import { sanitize, sanitizeProfile } from "../utils/sanitize.js";
+import { cancelAIRequestSession } from "./aiRequestHandlers.js";
 import { logger } from "../utils/logger.js";
 
 // ============================================================
@@ -137,6 +141,7 @@ function buildRoomStateSync(
             phase: room.phase,
             currentQuestionIndex: quizAgg?.currentQuestionIndex ?? -1,
             totalQuestions: 10,
+            profileFields: roomAgg.profileFields,
         },
         participants,
         self: {
@@ -527,12 +532,52 @@ export function registerRoomHandlers(
     });
 
     // ----------------------------------------------------------
+    // fields:update——ホストがプロフィール項目を編集
+    // ----------------------------------------------------------
+    socket.on(C2S_EVENTS.FIELDS_UPDATE, (payload: unknown) => {
+        try {
+            const parsed = UpdateFieldsSchema.parse(payload);
+
+            const session = socketSessions.get(socket.id);
+            if (!session) return;
+
+            const room = roomRepo.findByCode(session.roomCode);
+            if (!room) return;
+
+            const roomAgg = RoomAggregate.fromRoom(room);
+
+            const profilesInvalidated = roomAgg.updateProfileFields(
+                parsed.fields,
+                session.participantId,
+            );
+            roomRepo.save(roomAgg.toRoom());
+
+            const response: FieldsUpdatedPayload = {
+                fields: roomAgg.profileFields,
+                profilesInvalidated,
+            };
+            io.to(session.roomCode).emit(S2C_EVENTS.FIELDS_UPDATED, response);
+
+            logger.info(
+                {
+                    roomCode: session.roomCode,
+                    fieldCount: parsed.fields.length,
+                    profilesInvalidated,
+                },
+                "Profile fields updated by host",
+            );
+        } catch (error) {
+            emitError(socket, error);
+        }
+    });
+
+    // ----------------------------------------------------------
     // profile:submit
     // ----------------------------------------------------------
     socket.on(C2S_EVENTS.PROFILE_SUBMIT, (payload: unknown) => {
         try {
+            // 基本構造のバリデーション（Record<string, string>）
             const parsed = SubmitProfileSchema.parse(payload);
-            const profile = sanitizeProfile(parsed.profile);
 
             const session = socketSessions.get(socket.id);
             if (!session) {
@@ -547,6 +592,12 @@ export function registerRoomHandlers(
             if (!room) return;
 
             const roomAgg = RoomAggregate.fromRoom(room);
+
+            // ルームのプロフィール項目定義に基づいて動的バリデーション
+            const dynamicSchema = createProfileSchema(roomAgg.profileFields);
+            const validated = dynamicSchema.parse(parsed.profile);
+            const profile = sanitizeProfile(validated);
+
             roomAgg.updateProfile(session.participantId, profile);
             roomRepo.save(roomAgg.toRoom());
 
@@ -598,6 +649,12 @@ function handleDisconnect(
     }
 
     const roomAgg = RoomAggregate.fromRoom(room);
+
+    // ホストが切断した場合、進行中の AI リクエストセッションをキャンセル
+    // （ホスト移譲前にチェックする必要がある）
+    if (roomAgg.isHost(session.participantId)) {
+        cancelAIRequestSession(session.roomCode, io, timerService);
+    }
 
     // 切断 + ホスト移譲を1つのドメインオペレーションで実行
     const { newHost, roomEmpty } = roomAgg.disconnectAndTransferHost(session.participantId);

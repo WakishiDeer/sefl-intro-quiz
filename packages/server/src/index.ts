@@ -27,10 +27,12 @@ import {
 import { InMemoryRoomRepository } from "./infrastructure/InMemoryRoomRepository.js";
 import { InMemoryQuizRepository } from "./infrastructure/InMemoryQuizRepository.js";
 import { ClaudeQuizGenerator } from "./infrastructure/ClaudeQuizGenerator.js";
+import { ClaudeProfileFieldSuggester } from "./infrastructure/ClaudeProfileFieldSuggester.js";
 import { NodeTimerService } from "./infrastructure/NodeTimerService.js";
 import { registerRoomHandlers } from "./application/roomHandlers.js";
 import { broadcastRoomList } from "./application/roomHandlers.js";
 import { registerQuizHandlers } from "./application/quizHandlers.js";
+import { registerAIRequestHandlers } from "./application/aiRequestHandlers.js";
 import { logger } from "./utils/logger.js";
 
 // ============================================================
@@ -50,6 +52,7 @@ const roomRepo = new InMemoryRoomRepository();
 const quizRepo = new InMemoryQuizRepository();
 const CLAUDE_MODEL = process.env["CLAUDE_MODEL"] ?? undefined;
 const quizGenerator = new ClaudeQuizGenerator(ANTHROPIC_API_KEY, CLAUDE_MODEL);
+const fieldSuggester = new ClaudeProfileFieldSuggester(ANTHROPIC_API_KEY, CLAUDE_MODEL);
 const timerService = new NodeTimerService();
 
 // ============================================================
@@ -97,9 +100,10 @@ const io = new Server(httpServer, {
 io.on("connection", (socket) => {
   logger.info({ socketId: socket.id }, "Client connected");
 
-  // Room & Quiz ハンドラを登録
+  // Room & Quiz & AI Request ハンドラを登録
   registerRoomHandlers(io, socket, roomRepo, quizRepo, timerService);
   registerQuizHandlers(io, socket, roomRepo, quizRepo, quizGenerator, timerService);
+  registerAIRequestHandlers(io, socket, roomRepo, fieldSuggester, timerService);
 });
 
 // ============================================================

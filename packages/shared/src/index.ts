@@ -8,6 +8,7 @@
 // 型定義
 export type {
     Profile,
+    ProfileFieldDefinition,
     RoomPhase,
     Participant,
     Room,
@@ -43,6 +44,15 @@ export type {
     RoomListPayload,
     CheckNicknamePayload,
     NicknameResultPayload,
+    UpdateFieldsPayload,
+    FieldsUpdatedPayload,
+    AIRequestStartedPayload,
+    AIRequestSubmitPayload,
+    AIRequestFinalizePayload,
+    AIRequestStatusPayload,
+    AIRequestResultPayload,
+    AIRequestAdoptPayload,
+    AIRequestCancelledPayload,
 } from "./types/index.js";
 
 // 定数
@@ -59,6 +69,11 @@ export {
     SCORE_PER_CORRECT,
     MAX_PROFILE_FIELD_LENGTH,
     MIN_PROFILE_FILLED_FIELDS,
+    MIN_PROFILE_FIELDS,
+    MAX_PROFILE_FIELDS,
+    MAX_PROFILE_FIELD_LABEL_LENGTH,
+    MAX_PROFILE_FIELD_PLACEHOLDER_LENGTH,
+    DEFAULT_PROFILE_FIELDS,
     PROFILE_FIELDS,
     MIN_NICKNAME_LENGTH,
     MAX_NICKNAME_LENGTH,
@@ -69,6 +84,9 @@ export {
     RATE_LIMIT_HTTP_PER_MIN,
     RATE_LIMIT_WINDOW_MS,
     DISCONNECT_REMOVE_TIMEOUT_MS,
+    AI_REQUEST_PRESETS,
+    AI_REQUEST_MAX_FREE_TEXT,
+    AI_REQUEST_TIMEOUT_MS,
 } from "./constants.js";
 
 // イベント名
@@ -83,7 +101,10 @@ export {
     NicknameSchema,
     RoomCodeSchema,
     ProfileFieldSchema,
+    ProfileFieldDefinitionSchema,
     ProfileSchema,
+    createProfileSchema,
+    UpdateFieldsSchema,
     CreateRoomSchema,
     JoinRoomSchema,
     SubmitProfileSchema,
@@ -92,6 +113,8 @@ export {
     AIQuestionSchema,
     AIOutputSchema,
     AIOutputJsonSchema,
+    AIRequestSubmitSchema,
+    AIRequestAdoptSchema,
 } from "./validation.js";
 export type {
     NicknameInput,

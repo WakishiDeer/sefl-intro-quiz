@@ -59,15 +59,35 @@ export const MAX_PROFILE_FIELD_LENGTH = 100;
 /** プロフィールに必要な最低入力フィールド数（1つ以上の非空フィールドが必要） */
 export const MIN_PROFILE_FILLED_FIELDS = 1;
 
-/** プロフィールのフィールド名一覧 */
-export const PROFILE_FIELDS = [
-    "hometown",
-    "hobbies",
-    "skills",
-    "favoriteFood",
-    "surprisingFact",
-    "freeText",
-] as const;
+/** ホストが設定できるプロフィール項目の最小数 */
+export const MIN_PROFILE_FIELDS = 1;
+
+/** ホストが設定できるプロフィール項目の最大数 */
+export const MAX_PROFILE_FIELDS = 10;
+
+/** プロフィール項目ラベルの最大文字数 */
+export const MAX_PROFILE_FIELD_LABEL_LENGTH = 30;
+
+/** プロフィール項目プレースホルダーの最大文字数 */
+export const MAX_PROFILE_FIELD_PLACEHOLDER_LENGTH = 50;
+
+import type { ProfileFieldDefinition } from "./types/profile.js";
+
+/**
+ * デフォルトのプロフィール項目定義。
+ * ルーム作成時に初期値として使用される。ホストは自由にカスタマイズ可能。
+ */
+export const DEFAULT_PROFILE_FIELDS: ProfileFieldDefinition[] = [
+    { id: "hometown", label: "出身地", placeholder: "例: 東京都" },
+    { id: "hobbies", label: "趣味", placeholder: "例: 映画鑑賞、ジョギング" },
+    { id: "skills", label: "特技", placeholder: "例: 料理、プログラミング" },
+    { id: "favorite_food", label: "好きな食べ物", placeholder: "例: カレーライス" },
+    { id: "surprising_fact", label: "意外な事実", placeholder: "例: 実は3カ国語話せます" },
+    { id: "free_text", label: "自由記述", placeholder: "何でもどうぞ！" },
+];
+
+/** @deprecated PROFILE_FIELDS は DEFAULT_PROFILE_FIELDS に置き換えられました */
+export const PROFILE_FIELDS = DEFAULT_PROFILE_FIELDS.map((f) => f.id);
 
 // ============================================================
 // Nickname 関連
@@ -91,6 +111,28 @@ export const AI_MAX_RETRIES = 3;
 
 /** AI API リトライの初回待機時間 (ms) */
 export const AI_RETRY_BASE_DELAY_MS = 1000;
+
+// ============================================================
+// AI リクエスト関連
+// ============================================================
+
+/** AI リクエストのプリセット選択肢（参加者がクイズの方向性を提案するための定型文） */
+export const AI_REQUEST_PRESETS = [
+    "もっと面白い質問にして",
+    "趣味に関する項目を増やして",
+    "仕事・スキルに関する項目を追加",
+    "ユニークな項目を入れて",
+    "食べ物系の項目を増やして",
+    "旅行・アウトドア系の項目を追加",
+    "性格・価値観に関する項目がほしい",
+    "カジュアルで答えやすい項目にして",
+] as const;
+
+/** AI リクエストの自由テキスト最大文字数 */
+export const AI_REQUEST_MAX_FREE_TEXT = 200;
+
+/** AI リクエストの受付タイムアウト（ms） */
+export const AI_REQUEST_TIMEOUT_MS = 60 * 1000;
 
 // ============================================================
 // レートリミット

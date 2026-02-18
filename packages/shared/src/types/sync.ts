@@ -6,6 +6,7 @@
  */
 
 import type { RoomPhase } from "./room.js";
+import type { ProfileFieldDefinition } from "./profile.js";
 import type { ScoreEntry } from "./quiz.js";
 
 // ============================================================
@@ -24,6 +25,8 @@ export interface RoomStateSync {
         currentQuestionIndex: number;
         /** 固定値 10 */
         totalQuestions: number;
+        /** ホストがカスタマイズしたプロフィール入力項目 */
+        profileFields: ProfileFieldDefinition[];
     };
     participants: ParticipantInfo[];
     /** playing/revealing 中のみ */
@@ -196,14 +199,7 @@ export interface JoinRoomPayload {
 
 /** profile:submit ペイロード */
 export interface SubmitProfilePayload {
-    profile: {
-        hometown: string;
-        hobbies: string;
-        skills: string;
-        favoriteFood: string;
-        surprisingFact: string;
-        freeText: string;
-    };
+    profile: Record<string, string>;
 }
 
 /** question:answer ペイロード */
@@ -250,4 +246,63 @@ export interface NicknameResultPayload {
     nickname: string;
     /** available: false の理由。ルーム不在 or ニックネーム重複 */
     reason?: "ROOM_NOT_FOUND" | "NICKNAME_TAKEN";
+}
+
+// ============================================================
+// fields:update イベントペイロード
+// ============================================================
+
+/** fields:update (C2S) ペイロード */
+export interface UpdateFieldsPayload {
+    fields: ProfileFieldDefinition[];
+}
+
+/** fields:updated (S2C) ペイロード */
+export interface FieldsUpdatedPayload {
+    fields: ProfileFieldDefinition[];
+    /** true の場合、プロフィールがリセットされたため再入力が必要 */
+    profilesInvalidated: boolean;
+}
+
+// ============================================================
+// AI リクエストイベントペイロード
+// ============================================================
+
+/** ai-request:started (S2C) ペイロード — ホストが AI リクエストを発動したことを通知 */
+export interface AIRequestStartedPayload {
+    message: string;
+    /** 受付終了時刻 (Unix timestamp ms) */
+    expiresAt: number;
+}
+
+/** ai-request:submit (C2S) ペイロード — 参加者のリクエスト投稿 */
+export interface AIRequestSubmitPayload {
+    presets: string[];
+    freeText: string;
+}
+
+/** ai-request:finalize (C2S) ペイロード — ホストがリクエスト受付を終了しAI生成開始 */
+export interface AIRequestFinalizePayload {
+    /** 空オブジェクト（今後オプション追加可） */
+}
+
+/** ai-request:status (S2C) ペイロード — リクエスト収集状況 */
+export interface AIRequestStatusPayload {
+    submittedCount: number;
+    totalParticipants: number;
+}
+
+/** ai-request:result (S2C) ペイロード — AI が提案したプロフィール項目 */
+export interface AIRequestResultPayload {
+    suggestedFields: ProfileFieldDefinition[];
+}
+
+/** ai-request:adopt (C2S) ペイロード — ホストが AI 提案を採用 */
+export interface AIRequestAdoptPayload {
+    fields: ProfileFieldDefinition[];
+}
+
+/** ai-request:cancelled (S2C) ペイロード — ホストが AI リクエストをキャンセル */
+export interface AIRequestCancelledPayload {
+    message: string;
 }

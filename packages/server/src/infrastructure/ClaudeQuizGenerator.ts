@@ -10,7 +10,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import type { Question } from "@self-intro-quiz/shared";
+import type { ProfileFieldDefinition, Question } from "@self-intro-quiz/shared";
 import {
     AI_MAX_TOKENS,
     AI_MAX_RETRIES,
@@ -85,10 +85,11 @@ export class ClaudeQuizGenerator implements QuizGenerator {
      * Claude の tool_use を使い、JSON Schema で出力構造を強制する。
      * 最大 AI_MAX_RETRIES 回リトライする（exponential backoff）。
      *
+     * @param profileFields - 現在のプロフィール項目定義（ラベル解決用）
      * @throws Error 全リトライ失敗時
      */
-    async generate(participants: ParticipantProfile[]): Promise<Question[]> {
-        const userPrompt = this.buildUserPrompt(participants);
+    async generate(participants: ParticipantProfile[], profileFields: ProfileFieldDefinition[]): Promise<Question[]> {
+        const userPrompt = this.buildUserPrompt(participants, profileFields);
         let lastError: Error | null = null;
 
         for (let attempt = 0; attempt < AI_MAX_RETRIES; attempt++) {
@@ -139,16 +140,12 @@ export class ClaudeQuizGenerator implements QuizGenerator {
     // Private methods
     // ----------------------------------------------------------
 
-    private buildUserPrompt(participants: ParticipantProfile[]): string {
-        /** フィールドキー → 日本語ラベルのマッピング */
-        const fieldLabels: Record<string, string> = {
-            hometown: "出身地",
-            hobbies: "趣味",
-            skills: "特技",
-            favoriteFood: "好きな食べ物",
-            surprisingFact: "意外な事実",
-            freeText: "自由記述",
-        };
+    private buildUserPrompt(participants: ParticipantProfile[], profileFields: ProfileFieldDefinition[]): string {
+        /** フィールドID → 日本語ラベルのマッピング（動的生成） */
+        const fieldLabels: Record<string, string> = {};
+        for (const field of profileFields) {
+            fieldLabels[field.id] = field.label;
+        }
 
         const profileTexts = participants
             .map((p) => {

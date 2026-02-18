@@ -18,9 +18,15 @@ export const C2S_EVENTS = {
     ROOM_LIST_UNSUBSCRIBE: "room:list-unsubscribe",
     ROOM_CHECK_NICKNAME: "room:check-nickname",
     PROFILE_SUBMIT: "profile:submit",
+    FIELDS_UPDATE: "fields:update",
     QUIZ_GENERATE: "quiz:generate",
     QUIZ_NEXT_QUESTION: "quiz:next-question",
     QUESTION_ANSWER: "question:answer",
+    AI_REQUEST_START: "ai-request:start",
+    AI_REQUEST_SUBMIT: "ai-request:submit",
+    AI_REQUEST_FINALIZE: "ai-request:finalize",
+    AI_REQUEST_ADOPT: "ai-request:adopt",
+    AI_REQUEST_CANCEL: "ai-request:cancel",
 } as const;
 
 // ============================================================
@@ -39,6 +45,7 @@ export const S2C_EVENTS = {
     ROOM_PARTICIPANT_LEFT: "room:participant-left",
     ROOM_HOST_CHANGED: "room:host-changed",
     PROFILE_UPDATED: "profile:updated",
+    FIELDS_UPDATED: "fields:updated",
     QUIZ_GENERATING: "quiz:generating",
     QUIZ_READY: "quiz:ready",
     QUIZ_GENERATE_FAILED: "quiz:generate-failed",
@@ -46,6 +53,11 @@ export const S2C_EVENTS = {
     QUESTION_ANSWER_COUNT: "question:answer-count",
     QUESTION_REVEAL: "question:reveal",
     QUIZ_FINISHED: "quiz:finished",
+    AI_REQUEST_STARTED: "ai-request:started",
+    AI_REQUEST_STATUS: "ai-request:status",
+    AI_REQUEST_RESULT: "ai-request:result",
+    AI_REQUEST_CANCELLED: "ai-request:cancelled",
+    AI_REQUEST_GENERATING: "ai-request:generating",
 } as const;
 
 // ============================================================

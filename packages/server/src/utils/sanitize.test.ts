@@ -33,17 +33,27 @@ describe("sanitizeProfile", () => {
             hometown: "<b>Tokyo</b>",
             hobbies: "<script>alert(1)</script>Reading",
             skills: "  TypeScript  ",
-            favoriteFood: "Sushi<img onerror=alert(1)>",
-            surprisingFact: "I can juggle",
-            freeText: "<a href='x'>link</a>",
+            favorite_food: "Sushi<img onerror=alert(1)>",
+            surprising_fact: "I can juggle",
+            free_text: "<a href='x'>link</a>",
         };
 
         const clean = sanitizeProfile(dirty);
-        expect(clean.hometown).toBe("Tokyo");
-        expect(clean.hobbies).toBe("Reading");
-        expect(clean.skills).toBe("TypeScript");
-        expect(clean.favoriteFood).toBe("Sushi");
-        expect(clean.surprisingFact).toBe("I can juggle");
-        expect(clean.freeText).toBe("link");
+        expect(clean["hometown"]).toBe("Tokyo");
+        expect(clean["hobbies"]).toBe("Reading");
+        expect(clean["skills"]).toBe("TypeScript");
+        expect(clean["favorite_food"]).toBe("Sushi");
+        expect(clean["surprising_fact"]).toBe("I can juggle");
+        expect(clean["free_text"]).toBe("link");
+    });
+
+    it("動的キーのプロフィールもサニタイズする", () => {
+        const dirty = {
+            pet: "<b>Cat</b>",
+            color: "  Blue  ",
+        };
+        const clean = sanitizeProfile(dirty);
+        expect(clean["pet"]).toBe("Cat");
+        expect(clean["color"]).toBe("Blue");
     });
 });

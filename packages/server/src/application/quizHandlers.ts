@@ -118,9 +118,12 @@ export function registerQuizHandlers(
                     profile: p.profile!,
                 }));
 
+            // ルームのプロフィール項目定義を取得（AI プロンプトのラベル解決に使用）
+            const profileFields = roomAgg.profileFields;
+
             void (async () => {
                 try {
-                    const questions = await quizGenerator.generate(participants);
+                    const questions = await quizGenerator.generate(participants, profileFields);
                     const quizAgg = QuizAggregate.create(session.roomCode, questions);
                     quizRepo.save(quizAgg.toQuiz());
 

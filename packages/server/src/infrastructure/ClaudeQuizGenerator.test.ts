@@ -7,7 +7,8 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Question } from "@self-intro-quiz/shared";
-import { AI_MAX_RETRIES } from "@self-intro-quiz/shared";
+import { AI_MAX_RETRIES, DEFAULT_PROFILE_FIELDS } from "@self-intro-quiz/shared";
+import type { ProfileFieldDefinition } from "@self-intro-quiz/shared";
 import type { ParticipantProfile } from "../domain/quiz/QuizGenerator.js";
 
 // ============================================================
@@ -53,9 +54,9 @@ function createTestParticipants(): ParticipantProfile[] {
                 hometown: "東京",
                 hobbies: "読書",
                 skills: "プログラミング",
-                favoriteFood: "寿司",
-                surprisingFact: "猫を5匹飼っている",
-                freeText: "よろしくお願いします",
+                favorite_food: "寿司",
+                surprising_fact: "猫を5匹飼っている",
+                free_text: "よろしくお願いします",
             },
         },
         {
@@ -65,9 +66,9 @@ function createTestParticipants(): ParticipantProfile[] {
                 hometown: "大阪",
                 hobbies: "サッカー",
                 skills: "料理",
-                favoriteFood: "たこ焼き",
-                surprisingFact: "富士山に3回登った",
-                freeText: "",
+                favorite_food: "たこ焼き",
+                surprising_fact: "富士山に3回登った",
+                free_text: "",
             },
         },
         {
@@ -77,9 +78,9 @@ function createTestParticipants(): ParticipantProfile[] {
                 hometown: "名古屋",
                 hobbies: "映画鑑賞",
                 skills: "ピアノ",
-                favoriteFood: "味噌カツ",
-                surprisingFact: "10カ国語を話せる",
-                freeText: "はじめまして！",
+                favorite_food: "味噌カツ",
+                surprising_fact: "10カ国語を話せる",
+                free_text: "はじめまして！",
             },
         },
     ];
@@ -158,7 +159,7 @@ describe("ClaudeQuizGenerator", () => {
             const aiOutput = createValidAIOutput(participants);
             mockCreate.mockResolvedValueOnce(createToolUseResponse(aiOutput));
 
-            const questions = await generator.generate(participants);
+            const questions = await generator.generate(participants, DEFAULT_PROFILE_FIELDS);
 
             expect(questions).toHaveLength(10);
             questions.forEach((q: Question, i: number) => {
@@ -175,7 +176,7 @@ describe("ClaudeQuizGenerator", () => {
             const aiOutput = createValidAIOutput(participants);
             mockCreate.mockResolvedValueOnce(createToolUseResponse(aiOutput));
 
-            await generator.generate(participants);
+            await generator.generate(participants, DEFAULT_PROFILE_FIELDS);
 
             expect(mockCreate).toHaveBeenCalledOnce();
             const callArgs = mockCreate.mock.calls[0]![0];
@@ -190,7 +191,7 @@ describe("ClaudeQuizGenerator", () => {
             aiOutput.questions[0]!.subjectNickname = "存在しない名前";
             mockCreate.mockResolvedValueOnce(createToolUseResponse(aiOutput));
 
-            const questions = await generator.generate(participants);
+            const questions = await generator.generate(participants, DEFAULT_PROFILE_FIELDS);
 
             // 不明なニックネームは最初の参加者の ID にフォールバック
             expect(questions[0]!.subjectId).toBe("p1");
@@ -202,7 +203,7 @@ describe("ClaudeQuizGenerator", () => {
             const textResponse = createTextOnlyResponse("これはテキストです");
             mockCreate.mockResolvedValue(textResponse);
 
-            await expect(generator.generate(participants)).rejects.toThrow(
+            await expect(generator.generate(participants, DEFAULT_PROFILE_FIELDS)).rejects.toThrow(
                 /Quiz generation failed after/,
             );
             expect(mockCreate).toHaveBeenCalledTimes(AI_MAX_RETRIES);
@@ -217,7 +218,7 @@ describe("ClaudeQuizGenerator", () => {
             const validOutput = createValidAIOutput(participants);
             mockCreate.mockResolvedValueOnce(createToolUseResponse(validOutput));
 
-            const questions = await generator.generate(participants);
+            const questions = await generator.generate(participants, DEFAULT_PROFILE_FIELDS);
 
             expect(questions).toHaveLength(10);
             expect(mockCreate).toHaveBeenCalledTimes(2);
@@ -231,7 +232,7 @@ describe("ClaudeQuizGenerator", () => {
             const validOutput = createValidAIOutput(participants);
             mockCreate.mockResolvedValueOnce(createToolUseResponse(validOutput));
 
-            const questions = await generator.generate(participants);
+            const questions = await generator.generate(participants, DEFAULT_PROFILE_FIELDS);
 
             expect(questions).toHaveLength(10);
             expect(mockCreate).toHaveBeenCalledTimes(2);
@@ -240,7 +241,7 @@ describe("ClaudeQuizGenerator", () => {
         it("全リトライ失敗後、最後のエラーメッセージを含む Error をスローする", async () => {
             mockCreate.mockRejectedValue(new Error("Persistent API error"));
 
-            await expect(generator.generate(participants)).rejects.toThrow(
+            await expect(generator.generate(participants, DEFAULT_PROFILE_FIELDS)).rejects.toThrow(
                 /Persistent API error/,
             );
             expect(mockCreate).toHaveBeenCalledTimes(AI_MAX_RETRIES);
@@ -260,7 +261,7 @@ describe("ClaudeQuizGenerator", () => {
             };
             mockCreate.mockResolvedValue(wrongToolResponse);
 
-            await expect(generator.generate(participants)).rejects.toThrow(
+            await expect(generator.generate(participants, DEFAULT_PROFILE_FIELDS)).rejects.toThrow(
                 /Quiz generation failed after/,
             );
         });
@@ -271,7 +272,7 @@ describe("ClaudeQuizGenerator", () => {
             const aiOutput = createValidAIOutput(participants);
             mockCreate.mockResolvedValueOnce(createToolUseResponse(aiOutput));
 
-            await generator.generate(participants);
+            await generator.generate(participants, DEFAULT_PROFILE_FIELDS);
 
             const userMessage = mockCreate.mock.calls[0]![0].messages[0].content;
             for (const p of participants) {
@@ -286,7 +287,7 @@ describe("ClaudeQuizGenerator", () => {
             const aiOutput = createValidAIOutput(participants);
             mockCreate.mockResolvedValueOnce(createToolUseResponse(aiOutput));
 
-            await generator.generate(participants);
+            await generator.generate(participants, DEFAULT_PROFILE_FIELDS);
 
             const userMessage = mockCreate.mock.calls[0]![0].messages[0].content as string;
             // 空でないフィールドは含まれる
@@ -305,9 +306,9 @@ describe("ClaudeQuizGenerator", () => {
                         hometown: "東京",
                         hobbies: "",
                         skills: "",
-                        favoriteFood: "",
-                        surprisingFact: "",
-                        freeText: "",
+                        favorite_food: "",
+                        surprising_fact: "",
+                        free_text: "",
                     },
                 },
                 {
@@ -317,9 +318,9 @@ describe("ClaudeQuizGenerator", () => {
                         hometown: "",
                         hobbies: "サッカー",
                         skills: "",
-                        favoriteFood: "たこ焼き",
-                        surprisingFact: "",
-                        freeText: "",
+                        favorite_food: "たこ焼き",
+                        surprising_fact: "",
+                        free_text: "",
                     },
                 },
                 {
@@ -329,9 +330,9 @@ describe("ClaudeQuizGenerator", () => {
                         hometown: "名古屋",
                         hobbies: "映画鑑賞",
                         skills: "ピアノ",
-                        favoriteFood: "味噌カツ",
-                        surprisingFact: "10カ国語を話せる",
-                        freeText: "はじめまして！",
+                        favorite_food: "味噌カツ",
+                        surprising_fact: "10カ国語を話せる",
+                        free_text: "はじめまして！",
                     },
                 },
             ];
@@ -339,7 +340,7 @@ describe("ClaudeQuizGenerator", () => {
             const aiOutput = createValidAIOutput(partialParticipants);
             mockCreate.mockResolvedValueOnce(createToolUseResponse(aiOutput));
 
-            await generator.generate(partialParticipants);
+            await generator.generate(partialParticipants, DEFAULT_PROFILE_FIELDS);
 
             const userMessage = mockCreate.mock.calls[0]![0].messages[0].content as string;
             // Alice: hometown のみ

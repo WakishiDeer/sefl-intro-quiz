@@ -4,8 +4,8 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { RoomAggregate, RoomDomainError } from "./RoomAggregate.js";
-import type { Profile, Room } from "@self-intro-quiz/shared";
-import { MAX_PARTICIPANTS } from "@self-intro-quiz/shared";
+import type { Profile, Room, ProfileFieldDefinition } from "@self-intro-quiz/shared";
+import { MAX_PARTICIPANTS, DEFAULT_PROFILE_FIELDS, MIN_PROFILE_FIELDS, MAX_PROFILE_FIELDS } from "@self-intro-quiz/shared";
 
 // ============================================================
 // ヘルパー
@@ -15,13 +15,14 @@ function createRoom(): RoomAggregate {
     return RoomAggregate.create("ABC123", "Alice", "socket-host");
 }
 
+/** デフォルトのプロフィール項目に合致するダミープロフィール */
 const dummyProfile: Profile = {
     hometown: "Tokyo",
     hobbies: "Reading",
     skills: "TypeScript",
-    favoriteFood: "Sushi",
-    surprisingFact: "I can juggle",
-    freeText: "",
+    favorite_food: "Sushi",
+    surprising_fact: "I can juggle",
+    free_text: "",
 };
 
 // ============================================================
@@ -482,9 +483,9 @@ describe("RoomAggregate", () => {
                 hometown: "",
                 hobbies: "",
                 skills: "",
-                favoriteFood: "",
-                surprisingFact: "",
-                freeText: "",
+                favorite_food: "",
+                surprising_fact: "",
+                free_text: "",
             };
             const data = room.toRoom();
             room.updateProfile(data.hostId, emptyProfile);
@@ -497,9 +498,9 @@ describe("RoomAggregate", () => {
                 hometown: "   ",
                 hobbies: "  ",
                 skills: "",
-                favoriteFood: "",
-                surprisingFact: "",
-                freeText: "",
+                favorite_food: "",
+                surprising_fact: "",
+                free_text: "",
             };
             const data = room.toRoom();
             room.updateProfile(data.hostId, whitespaceProfile);
@@ -517,9 +518,9 @@ describe("RoomAggregate", () => {
                 hometown: "Tokyo",
                 hobbies: "",
                 skills: "",
-                favoriteFood: "",
-                surprisingFact: "",
-                freeText: "",
+                favorite_food: "",
+                surprising_fact: "",
+                free_text: "",
             };
             expect(RoomAggregate.isProfileEffective(profile)).toBe(true);
         });
@@ -529,9 +530,9 @@ describe("RoomAggregate", () => {
                 hometown: "",
                 hobbies: "",
                 skills: "",
-                favoriteFood: "",
-                surprisingFact: "",
-                freeText: "",
+                favorite_food: "",
+                surprising_fact: "",
+                free_text: "",
             };
             expect(RoomAggregate.isProfileEffective(profile)).toBe(false);
         });
@@ -541,9 +542,9 @@ describe("RoomAggregate", () => {
                 hometown: "   ",
                 hobbies: "  ",
                 skills: "",
-                favoriteFood: "",
-                surprisingFact: "",
-                freeText: "",
+                favorite_food: "",
+                surprising_fact: "",
+                free_text: "",
             };
             expect(RoomAggregate.isProfileEffective(profile)).toBe(false);
         });
@@ -738,6 +739,136 @@ describe("RoomAggregate", () => {
             const reconnected = room.reconnectParticipant("Bob", "socket-bob-new");
             expect(reconnected).not.toBeNull();
             expect(reconnected!.clientId).toBe("client-123");
+        });
+    });
+
+    // ----------------------------------------------------------
+    // プロフィール項目管理 (updateProfileFields)
+    // ----------------------------------------------------------
+
+    describe("updateProfileFields", () => {
+        it("ホストがロビーフェーズでプロフィール項目を更新できる", () => {
+            const hostId = room.hostId;
+            const newFields: ProfileFieldDefinition[] = [
+                { id: "color", label: "好きな色", placeholder: "例: 青" },
+                { id: "animal", label: "好きな動物", placeholder: "例: 猫" },
+            ];
+            const invalidated = room.updateProfileFields(newFields, hostId);
+            expect(room.profileFields).toEqual(newFields);
+            // フィールド構成が変わったので invalidated = true
+            expect(invalidated).toBe(true);
+        });
+
+        it("同じフィールド ID 構成の場合、profilesInvalidated = false", () => {
+            const hostId = room.hostId;
+            // デフォルトと同じ ID 構成でラベルだけ変更
+            const sameIds = DEFAULT_PROFILE_FIELDS.map((f) => ({
+                ...f,
+                label: f.label + "★",
+            }));
+            const invalidated = room.updateProfileFields(sameIds, hostId);
+            expect(invalidated).toBe(false);
+        });
+
+        it("フィールド変更時に全参加者のプロフィールがリセットされる", () => {
+            const hostId = room.hostId;
+            room.updateProfile(hostId, dummyProfile);
+            expect(room.getParticipant(hostId)?.profile).not.toBeNull();
+
+            const newFields: ProfileFieldDefinition[] = [
+                { id: "new_field", label: "新項目", placeholder: "" },
+            ];
+            room.updateProfileFields(newFields, hostId);
+
+            // プロフィールがリセットされている
+            expect(room.getParticipant(hostId)?.profile).toBeNull();
+        });
+
+        it("フィールド変更なし（ラベルのみ変更）ではプロフィールが保持される", () => {
+            const hostId = room.hostId;
+            room.updateProfile(hostId, dummyProfile);
+
+            const sameIds = DEFAULT_PROFILE_FIELDS.map((f) => ({
+                ...f,
+                label: f.label + " (edited)",
+            }));
+            room.updateProfileFields(sameIds, hostId);
+
+            expect(room.getParticipant(hostId)?.profile).toEqual(dummyProfile);
+        });
+
+        it("ホスト以外が呼ぶと NOT_HOST エラー", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            const fields: ProfileFieldDefinition[] = [
+                { id: "x", label: "X", placeholder: "" },
+            ];
+            try {
+                room.updateProfileFields(fields, bob.id);
+                expect.fail("should have thrown");
+            } catch (e) {
+                expect(e).toBeInstanceOf(RoomDomainError);
+                expect((e as RoomDomainError).code).toBe("NOT_HOST");
+            }
+        });
+
+        it("ロビー以外のフェーズでは INVALID_PHASE エラー", () => {
+            room.changePhase("playing");
+            const hostId = room.hostId;
+            const fields: ProfileFieldDefinition[] = [
+                { id: "x", label: "X", placeholder: "" },
+            ];
+            try {
+                room.updateProfileFields(fields, hostId);
+                expect.fail("should have thrown");
+            } catch (e) {
+                expect(e).toBeInstanceOf(RoomDomainError);
+                expect((e as RoomDomainError).code).toBe("INVALID_PHASE");
+            }
+        });
+
+        it("項目数が MIN_PROFILE_FIELDS 未満だと INVALID_FIELDS エラー", () => {
+            const hostId = room.hostId;
+            try {
+                room.updateProfileFields([], hostId);
+                expect.fail("should have thrown");
+            } catch (e) {
+                expect(e).toBeInstanceOf(RoomDomainError);
+                expect((e as RoomDomainError).code).toBe("INVALID_FIELDS");
+            }
+        });
+
+        it("項目数が MAX_PROFILE_FIELDS を超えると INVALID_FIELDS エラー", () => {
+            const hostId = room.hostId;
+            const tooMany: ProfileFieldDefinition[] = Array.from(
+                { length: MAX_PROFILE_FIELDS + 1 },
+                (_, i) => ({ id: `f${i}`, label: `Field ${i}`, placeholder: "" }),
+            );
+            try {
+                room.updateProfileFields(tooMany, hostId);
+                expect.fail("should have thrown");
+            } catch (e) {
+                expect(e).toBeInstanceOf(RoomDomainError);
+                expect((e as RoomDomainError).code).toBe("INVALID_FIELDS");
+            }
+        });
+
+        it("ID が重複している場合 INVALID_FIELDS エラー", () => {
+            const hostId = room.hostId;
+            const duplicateIds: ProfileFieldDefinition[] = [
+                { id: "same", label: "A", placeholder: "" },
+                { id: "same", label: "B", placeholder: "" },
+            ];
+            try {
+                room.updateProfileFields(duplicateIds, hostId);
+                expect.fail("should have thrown");
+            } catch (e) {
+                expect(e).toBeInstanceOf(RoomDomainError);
+                expect((e as RoomDomainError).code).toBe("INVALID_FIELDS");
+            }
+        });
+
+        it("デフォルトのプロフィール項目が初期値として設定されている", () => {
+            expect(room.profileFields).toEqual(DEFAULT_PROFILE_FIELDS);
         });
     });
 });

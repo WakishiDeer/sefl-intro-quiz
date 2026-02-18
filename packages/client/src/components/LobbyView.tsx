@@ -2,16 +2,21 @@
  * LobbyView — ロビー画面
  *
  * プロフィール入力・参加者一覧・クイズ生成ボタンを表示する。
+ * ホストはプロフィール項目の編集、AI リクエストの発動が可能。
  */
 
+import { useState } from "react";
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { useQuizStore } from "../stores/useQuizStore.js";
 import { socket } from "../lib/socket.js";
 import { clearSession } from "../lib/sessionPersistence.js";
-import { C2S_EVENTS } from "@self-intro-quiz/shared";
+import { C2S_EVENTS, DEFAULT_MIN_PARTICIPANTS } from "@self-intro-quiz/shared";
 import { ProfileForm } from "./ProfileForm.js";
 import { ParticipantList } from "./ParticipantList.js";
 import { RoomCodeDisplay } from "./RoomCodeDisplay.js";
+import { ProfileFieldEditor } from "./ProfileFieldEditor.js";
+import { AIRequestModal } from "./AIRequestModal.js";
+import { AIRequestResultPanel } from "./AIRequestResultPanel.js";
 import { useNavigate } from "react-router";
 
 export function LobbyView() {
@@ -22,7 +27,17 @@ export function LobbyView() {
   const isGenerating = useQuizStore((s) => s.isGenerating);
   const isReady = useQuizStore((s) => s.isReady);
   const generateError = useQuizStore((s) => s.generateError);
+  const aiRequestState = useRoomStore((s) => s.aiRequestState);
+  const participants = useRoomStore((s) => s.participants);
   const navigate = useNavigate();
+
+  const profileSubmittedCount = participants.filter((p) => p.hasProfile).length;
+  const canGenerate = profileSubmittedCount >= DEFAULT_MIN_PARTICIPANTS && !isGenerating;
+
+  const [showFieldEditor, setShowFieldEditor] = useState(false);
+  const [showAIRequestModal, setShowAIRequestModal] = useState(false);
+  /** ユーザーがモーダルを閉じた時点の aiRequestState を記録。状態が遷移したら再表示する */
+  const [dismissedAIState, setDismissedAIState] = useState<string | null>(null);
 
   const handleGenerate = () => {
     socket.emit(C2S_EVENTS.QUIZ_GENERATE);
@@ -48,6 +63,25 @@ export function LobbyView() {
     }
   };
 
+  const handleStartAIRequest = () => {
+    socket.emit(C2S_EVENTS.AI_REQUEST_START);
+    setShowAIRequestModal(true);
+    setDismissedAIState(null);
+  };
+
+  const handleDismissAIModal = () => {
+    setShowAIRequestModal(false);
+    setDismissedAIState(aiRequestState);
+  };
+
+  // AI リクエストモーダルの表示判定:
+  // - ホストが明示的に開いた場合
+  // - aiRequestState が collecting/generating で、まだ閉じていない or 状態が遷移した
+  const shouldShowAIModal =
+    aiRequestState !== "idle" &&
+    aiRequestState !== "result" &&
+    (showAIRequestModal || dismissedAIState !== aiRequestState);
+
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4 pt-8">
       {roomCode && <RoomCodeDisplay roomCode={roomCode} />}
@@ -72,20 +106,59 @@ export function LobbyView() {
           )}
         </div>
 
-        {/* 右: 参加者一覧 */}
+        {/* 右: 参加者一覧 + ホスト操作 */}
         <div className="rounded-xl bg-white p-5 shadow">
           <ParticipantList mode="lobby" currentNickname={nickname} />
 
-          {/* Host のみ: 生成 / 開始 / 閉じるボタン */}
+          {/* Host のみ: 項目編集・AI リクエスト・生成・開始・閉じるボタン */}
           {isHost && (
             <div className="mt-4 space-y-2">
               {phase === "lobby" && (
-                <button
-                  onClick={handleGenerate}
-                  className="w-full rounded-lg bg-green-600 px-4 py-3 font-semibold text-white transition hover:bg-green-700"
-                >
-                  🎯 クイズを生成する
-                </button>
+                <>
+                  {/* プロフィール項目編集 */}
+                  <button
+                    onClick={() => setShowFieldEditor(true)}
+                    className="w-full rounded-lg border border-indigo-300 px-4 py-2.5 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50"
+                  >
+                    📝 プロフィール項目を編集
+                  </button>
+
+                  {/* AI リクエスト */}
+                  <button
+                    onClick={handleStartAIRequest}
+                    className="w-full rounded-lg border border-amber-300 px-4 py-2.5 text-sm font-medium text-amber-600 transition hover:bg-amber-50"
+                  >
+                    🤖 みんなで AI リクエスト
+                  </button>
+
+                  {/* クイズ生成 */}
+                  <div className="space-y-1">
+                    <p className={`text-xs ${
+                      profileSubmittedCount >= DEFAULT_MIN_PARTICIPANTS
+                        ? "text-green-600"
+                        : "text-red-500"
+                    }`}>
+                      プロフィール提出済み: {profileSubmittedCount}人
+                      {profileSubmittedCount < DEFAULT_MIN_PARTICIPANTS && (
+                        <span>（最低 {DEFAULT_MIN_PARTICIPANTS}人必要）</span>
+                      )}
+                    </p>
+                    <button
+                      onClick={handleGenerate}
+                      disabled={!canGenerate}
+                      className="w-full rounded-lg bg-green-600 px-4 py-3 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                          クイズを生成中...
+                        </>
+                      ) : (
+                        <>🎯 クイズを生成する</>
+                      )}
+                    </button>
+                  </div>
+                </>
               )}
 
               {isReady && (
@@ -129,6 +202,21 @@ export function LobbyView() {
           </div>
         </div>
       </div>
+
+      {/* モーダル群 */}
+      {showFieldEditor && (
+        <ProfileFieldEditor onClose={() => setShowFieldEditor(false)} />
+      )}
+
+      {shouldShowAIModal && (
+        <AIRequestModal onClose={handleDismissAIModal} />
+      )}
+
+      {aiRequestState === "result" && (
+        <AIRequestResultPanel
+          onClose={() => useRoomStore.getState().resetAIRequest()}
+        />
+      )}
     </div>
   );
 }
