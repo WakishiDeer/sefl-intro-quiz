@@ -321,6 +321,21 @@ export class QuizAggregate {
         return count;
     }
 
+    /**
+     * 現在の問題に回答済みの参加者 ID 一覧を返す。
+     * 回答状況の per-participant 表示に使用する。
+     */
+    getAnsweredParticipantIds(): string[] {
+        const currentIndex = this.quiz.currentQuestionIndex;
+        const ids: string[] = [];
+        for (const [participantId, answers] of this.quiz.answers.entries()) {
+            if (answers.some((a) => a.questionIndex === currentIndex)) {
+                ids.push(participantId);
+            }
+        }
+        return ids;
+    }
+
     /** 現在の問題番号 */
     get currentQuestionIndex(): number {
         return this.quiz.currentQuestionIndex;

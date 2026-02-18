@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 
 ### Added
 
+- **クイズ中の参加者一覧サイドバー**: `playing` / `revealing` フェーズで画面右側に参加者一覧を常時表示。ホストバッジ・接続状態も確認可能。モバイルではメイン下にスタック表示（レスポンシブ対応）
+- **回答状況リアルタイム表示**: クイズ進行中に各参加者の回答状態（✓ 回答済み / ⏳ 回答中）をリアルタイムに表示。`AnswerCountPayload` / `CurrentQuestionInfo` に `answeredNicknames` フィールドを追加し、再接続時の状態復元にも対応
+- **自分のニックネーム強調表示**: 全フェーズ（ロビー・クイズ中）の参加者一覧で、自分の行を `ring-2 ring-indigo-400` で強調し「(あなた)」ラベルを表示
+- `QuizAggregate.getAnsweredParticipantIds()` メソッド追加（現在の問題に対する回答済み参加者 ID 一覧を返す）
+- `ParticipantList` コンポーネントに `mode` / `currentNickname` / `answeredNicknames` props を追加し、ロビー・クイズ中の表示を切り替え可能に
 - **ホスト即時委譲**: ホストが退出・切断した際に即座にホスト権限を最古参の接続中参加者に委譲する機能を追加。30秒の猶予期間を廃止し、ロビー・クイズ進行中・結果画面など全フェーズで即時委譲が動作。`RoomAggregate.disconnectAndTransferHost()` / `hasConnectedParticipants()` メソッド追加
 - **空ルーム自動削除**: 全参加者が切断した場合、ルームを即座に自動削除する機能を追加。ルームとクイズデータを即時クリーンアップし、ルーム一覧からも削除
 - **トースト通知**: ホスト委譲時に全参加者へ通知を表示する `Toast` コンポーネントと `useToastStore` を新規作成。新しいホストには「あなたが新しいホストになりました」、他の参加者には「○○さんが新しいホストになりました」と表示

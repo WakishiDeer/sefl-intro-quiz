@@ -16,6 +16,7 @@ export function LobbyView() {
   const roomCode = useRoomStore((s) => s.roomCode);
   const isHost = useRoomStore((s) => s.isHost);
   const phase = useRoomStore((s) => s.phase);
+  const nickname = useRoomStore((s) => s.nickname);
   const isGenerating = useQuizStore((s) => s.isGenerating);
   const isReady = useQuizStore((s) => s.isReady);
   const generateError = useQuizStore((s) => s.generateError);
@@ -60,7 +61,7 @@ export function LobbyView() {
 
         {/* 右: 参加者一覧 */}
         <div className="rounded-xl bg-white p-5 shadow">
-          <ParticipantList />
+          <ParticipantList mode="lobby" currentNickname={nickname} />
 
           {/* Host のみ: 生成 / 開始 / 閉じるボタン */}
           {isHost && (

@@ -151,6 +151,12 @@ function buildRoomStateSync(
         const quizData = quizAgg.toQuiz();
         const currentQ = quizAgg.currentQuestion;
         if (currentQ) {
+            // 回答済み参加者のニックネーム一覧を構築（再接続時の状態復元用）
+            const answeredIds = quizAgg.getAnsweredParticipantIds();
+            const answeredNicknames = answeredIds
+                .map((id) => room.participants.get(id)?.nickname)
+                .filter((n): n is string => n !== undefined);
+
             sync.currentQuestion = {
                 index: currentQ.index,
                 text: currentQ.text,
@@ -158,6 +164,7 @@ function buildRoomStateSync(
                 timerEndsAt: quizData.timerEndsAt ?? 0,
                 answeredCount: quizAgg.getAnsweredCount(),
                 totalParticipants: roomAgg.getConnectedParticipants().length,
+                answeredNicknames,
             };
         }
 

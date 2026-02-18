@@ -316,11 +316,16 @@ export function registerQuizHandlers(
             quizAgg.submitAnswer(session.participantId, parsed.choiceIndex);
             quizRepo.save(quizAgg.toQuiz());
 
-            // 回答数を broadcast
+            // 回答数を broadcast——回答済み参加者のニックネーム一覧も含める
             const eligibleParticipants = getEligibleParticipants(roomAgg, quizAgg.currentQuestionIndex);
+            const answeredIds = quizAgg.getAnsweredParticipantIds();
+            const answeredNicknames = answeredIds
+                .map((id) => roomAgg.getParticipant(id)?.nickname)
+                .filter((n): n is string => n !== undefined);
             const answerCount: AnswerCountPayload = {
                 answeredCount: quizAgg.getAnsweredCount(),
                 totalParticipants: eligibleParticipants.length,
+                answeredNicknames,
             };
             io.to(session.roomCode).emit(S2C_EVENTS.QUESTION_ANSWER_COUNT, answerCount);
 

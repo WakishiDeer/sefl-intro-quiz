@@ -268,4 +268,42 @@ describe("QuizAggregate", () => {
             expect(quiz.getAnsweredCount()).toBe(2);
         });
     });
+
+    describe("getAnsweredParticipantIds", () => {
+        it("回答者がいない場合、空配列を返す", () => {
+            quiz.start(Date.now() + 30000, 3);
+            expect(quiz.getAnsweredParticipantIds()).toEqual([]);
+        });
+
+        it("回答済み参加者の ID 一覧を返す", () => {
+            quiz.start(Date.now() + 30000, 3);
+            quiz.submitAnswer("participant-0", 0);
+            quiz.submitAnswer("participant-2", 1);
+
+            const ids = quiz.getAnsweredParticipantIds();
+            expect(ids).toHaveLength(2);
+            expect(ids).toContain("participant-0");
+            expect(ids).toContain("participant-2");
+            expect(ids).not.toContain("participant-1");
+        });
+
+        it("全員回答済みの場合、全 ID を返す", () => {
+            quiz.start(Date.now() + 30000, 3);
+            quiz.submitAnswer("participant-0", 0);
+            quiz.submitAnswer("participant-1", 1);
+            quiz.submitAnswer("participant-2", 2);
+
+            const ids = quiz.getAnsweredParticipantIds();
+            expect(ids).toHaveLength(3);
+        });
+
+        it("次の問題に進むと前の問題の回答者を含まない", () => {
+            quiz.start(Date.now() + 30000, 3);
+            quiz.submitAnswer("participant-0", 0);
+            quiz.nextQuestion(Date.now() + 30000, 3);
+
+            const ids = quiz.getAnsweredParticipantIds();
+            expect(ids).toEqual([]);
+        });
+    });
 });

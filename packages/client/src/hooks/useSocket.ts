@@ -60,6 +60,7 @@ export function useSocket(): void {
                     quizStore.setAnswerCount(
                         currentQuestion.answeredCount,
                         currentQuestion.totalParticipants,
+                        currentQuestion.answeredNicknames ?? [],
                     );
                 }
 
@@ -231,7 +232,11 @@ export function useSocket(): void {
         };
 
         const onAnswerCount = (payload: AnswerCountPayload) => {
-            useQuizStore.getState().setAnswerCount(payload.answeredCount, payload.totalParticipants);
+            useQuizStore.getState().setAnswerCount(
+                payload.answeredCount,
+                payload.totalParticipants,
+                payload.answeredNicknames ?? [],
+            );
         };
 
         const onQuestionReveal = (payload: QuestionRevealPayload) => {

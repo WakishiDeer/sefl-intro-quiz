@@ -57,6 +57,8 @@ export interface CurrentQuestionInfo {
     timerEndsAt: number;
     answeredCount: number;
     totalParticipants: number;
+    /** 回答済み参加者のニックネーム一覧（再接続時の状態復元用） */
+    answeredNicknames: string[];
 }
 
 /** 正解発表情報 */
@@ -145,6 +147,8 @@ export interface QuestionStartPayload {
 export interface AnswerCountPayload {
     answeredCount: number;
     totalParticipants: number;
+    /** 回答済み参加者のニックネーム一覧 */
+    answeredNicknames: string[];
 }
 
 /** question:reveal ペイロード */

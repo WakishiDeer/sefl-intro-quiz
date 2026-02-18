@@ -18,6 +18,8 @@ interface QuizState {
     myAnswer: number | null;
     answeredCount: number;
     totalParticipants: number;
+    /** 現在の問題に回答済みの参加者ニックネーム一覧 */
+    answeredNicknames: string[];
 
     // 正解発表
     revealedAnswer: QuestionRevealPayload | null;
@@ -37,7 +39,7 @@ interface QuizState {
     // アクション
     setQuestion: (q: QuestionStartPayload) => void;
     setMyAnswer: (choiceIndex: number) => void;
-    setAnswerCount: (count: number, total: number) => void;
+    setAnswerCount: (count: number, total: number, nicknames: string[]) => void;
     setReveal: (reveal: QuestionRevealPayload) => void;
     setFinished: (finalScores: ScoreEntry[]) => void;
     setGenerating: () => void;
@@ -52,6 +54,7 @@ const initialState = {
     myAnswer: null,
     answeredCount: 0,
     totalParticipants: 0,
+    answeredNicknames: [],
     revealedAnswer: null,
     scores: [],
     isFinished: false,
@@ -71,13 +74,14 @@ export const useQuizStore = create<QuizState>((set) => ({
             myAnswer: null,
             answeredCount: 0,
             totalParticipants: q.totalParticipants,
+            answeredNicknames: [],
             revealedAnswer: null,
         }),
 
     setMyAnswer: (choiceIndex) => set({ myAnswer: choiceIndex }),
 
-    setAnswerCount: (count, total) =>
-        set({ answeredCount: count, totalParticipants: total }),
+    setAnswerCount: (count, total, nicknames) =>
+        set({ answeredCount: count, totalParticipants: total, answeredNicknames: nicknames }),
 
     setReveal: (reveal) =>
         set({
