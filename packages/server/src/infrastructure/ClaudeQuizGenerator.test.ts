@@ -280,5 +280,73 @@ describe("ClaudeQuizGenerator", () => {
                 expect(userMessage).toContain(p.profile.hobbies);
             }
         });
+
+        it("空フィールドはプロンプトに含まれない", async () => {
+            // Bob の freeText は空文字列
+            const aiOutput = createValidAIOutput(participants);
+            mockCreate.mockResolvedValueOnce(createToolUseResponse(aiOutput));
+
+            await generator.generate(participants);
+
+            const userMessage = mockCreate.mock.calls[0]![0].messages[0].content as string;
+            // 空でないフィールドは含まれる
+            expect(userMessage).toContain("Alice");
+            expect(userMessage).toContain("Bob");
+            expect(userMessage).toContain("大阪");
+            expect(userMessage).toContain("サッカー");
+        });
+
+        it("一部フィールドだけ入力された参加者でも正しくプロンプト生成される", async () => {
+            const partialParticipants: ParticipantProfile[] = [
+                {
+                    id: "p1",
+                    nickname: "Alice",
+                    profile: {
+                        hometown: "東京",
+                        hobbies: "",
+                        skills: "",
+                        favoriteFood: "",
+                        surprisingFact: "",
+                        freeText: "",
+                    },
+                },
+                {
+                    id: "p2",
+                    nickname: "Bob",
+                    profile: {
+                        hometown: "",
+                        hobbies: "サッカー",
+                        skills: "",
+                        favoriteFood: "たこ焼き",
+                        surprisingFact: "",
+                        freeText: "",
+                    },
+                },
+                {
+                    id: "p3",
+                    nickname: "Charlie",
+                    profile: {
+                        hometown: "名古屋",
+                        hobbies: "映画鑑賞",
+                        skills: "ピアノ",
+                        favoriteFood: "味噌カツ",
+                        surprisingFact: "10カ国語を話せる",
+                        freeText: "はじめまして！",
+                    },
+                },
+            ];
+
+            const aiOutput = createValidAIOutput(partialParticipants);
+            mockCreate.mockResolvedValueOnce(createToolUseResponse(aiOutput));
+
+            await generator.generate(partialParticipants);
+
+            const userMessage = mockCreate.mock.calls[0]![0].messages[0].content as string;
+            // Alice: hometown のみ
+            expect(userMessage).toContain("東京");
+            // Bob: hobbies + favoriteFood
+            expect(userMessage).toContain("サッカー");
+            expect(userMessage).toContain("たこ焼き");
+        });
     });
 });

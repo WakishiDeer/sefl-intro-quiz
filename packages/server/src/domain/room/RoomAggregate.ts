@@ -288,15 +288,26 @@ export class RoomAggregate {
         return true;
     }
 
-    /** プロフィール入力済みの参加者数 */
+    /**
+     * 有効なプロフィール（少なくとも1つの非空フィールドがある）の参加者数。
+     * 全フィールド空のプロフィールは「未入力」として扱う。
+     */
     getProfileSubmittedCount(): number {
         let count = 0;
         for (const p of this.room.participants.values()) {
-            if (p.profile !== null) {
+            if (p.profile !== null && RoomAggregate.isProfileEffective(p.profile)) {
                 count++;
             }
         }
         return count;
+    }
+
+    /**
+     * プロフィールが実質的に入力されているかを判定する。
+     * 少なくとも1つのフィールドに非空白文字が含まれていれば有効。
+     */
+    static isProfileEffective(profile: Profile): boolean {
+        return Object.values(profile).some((v) => v.trim().length > 0);
     }
 
     /** 参加者を ID で取得 */

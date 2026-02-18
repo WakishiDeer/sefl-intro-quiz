@@ -11,6 +11,7 @@ import {
     MIN_NICKNAME_LENGTH,
     MAX_NICKNAME_LENGTH,
     MAX_PROFILE_FIELD_LENGTH,
+    MIN_PROFILE_FILLED_FIELDS,
     ROOM_CODE_LENGTH,
     MAX_CHOICES,
 } from "./constants.js";
@@ -40,6 +41,10 @@ export const RoomCodeSchema = z
 
 export const ProfileFieldSchema = z.string().max(MAX_PROFILE_FIELD_LENGTH).default("");
 
+/**
+ * プロフィールスキーマ。
+ * 最低1つのフィールドに非空の値が必要（全フィールド空白のみは拒否）。
+ */
 export const ProfileSchema = z.object({
     hometown: ProfileFieldSchema,
     hobbies: ProfileFieldSchema,
@@ -47,7 +52,16 @@ export const ProfileSchema = z.object({
     favoriteFood: ProfileFieldSchema,
     surprisingFact: ProfileFieldSchema,
     freeText: ProfileFieldSchema,
-});
+}).refine(
+    (data) => {
+        const values = Object.values(data);
+        const filledCount = values.filter((v) => v.trim().length > 0).length;
+        return filledCount >= MIN_PROFILE_FILLED_FIELDS;
+    },
+    {
+        message: `少なくとも${MIN_PROFILE_FILLED_FIELDS}つのフィールドを入力してください`,
+    },
+);
 
 // ============================================================
 // Client → Server イベントペイロード
@@ -108,11 +122,20 @@ export const AIOutputSchema = z.object({
 /**
  * Claude API の tool_use で使用する input_schema。
  * AIOutputSchema (Zod) から自動生成された JSON Schema オブジェクト。
+ *
+ * 注意: `name` オプションを指定すると definitions ラッパーで包まれ、
+ * トップレベルに `type: "object"` が存在しなくなる。
+ * Anthropic API は `input_schema.type` を必須とするため、
+ * `name` を指定せずフラットな JSON Schema を生成する。
  */
-export const AIOutputJsonSchema = zodToJsonSchema(AIOutputSchema, {
-    name: "AIOutput",
+const rawJsonSchema = zodToJsonSchema(AIOutputSchema, {
     $refStrategy: "none",
 }) as Record<string, unknown>;
+
+// Anthropic API は JSON Schema のメタキーを受け付けないため除去
+delete rawJsonSchema.$schema;
+
+export const AIOutputJsonSchema = rawJsonSchema;
 
 // ============================================================
 // 型エクスポート

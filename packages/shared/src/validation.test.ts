@@ -12,6 +12,7 @@ import {
     SubmitAnswerSchema,
     AIQuestionSchema,
     AIOutputSchema,
+    AIOutputJsonSchema,
 } from "./validation.js";
 
 // ============================================================
@@ -83,13 +84,28 @@ describe("ProfileSchema", () => {
         expect(result.success).toBe(true);
     });
 
-    it("空フィールドにデフォルト値を設定する", () => {
-        const result = ProfileSchema.safeParse({});
+    it("1フィールドだけ入力されていれば受け入れる", () => {
+        const result = ProfileSchema.safeParse({
+            hometown: "Tokyo",
+        });
         expect(result.success).toBe(true);
-        if (result.success) {
-            expect(result.data.hometown).toBe("");
-            expect(result.data.hobbies).toBe("");
-        }
+    });
+
+    it("全フィールド空（デフォルト値のみ）を拒否する", () => {
+        const result = ProfileSchema.safeParse({});
+        expect(result.success).toBe(false);
+    });
+
+    it("全フィールド空白のみを拒否する", () => {
+        const result = ProfileSchema.safeParse({
+            hometown: "   ",
+            hobbies: "  ",
+            skills: "",
+            favoriteFood: "",
+            surprisingFact: "",
+            freeText: "",
+        });
+        expect(result.success).toBe(false);
     });
 
     it("100文字を超えるフィールドを拒否する", () => {
@@ -198,6 +214,24 @@ describe("AIQuestionSchema", () => {
             subjectNickname: "Alice",
         });
         expect(result.success).toBe(false);
+    });
+});
+
+describe("AIOutputJsonSchema", () => {
+    it("トップレベルに type: 'object' が存在する（Claude API 必須）", () => {
+        expect(AIOutputJsonSchema).toHaveProperty("type", "object");
+    });
+
+    it("トップレベルに properties が存在する", () => {
+        expect(AIOutputJsonSchema).toHaveProperty("properties");
+    });
+
+    it("$schema キーが除去されている", () => {
+        expect(AIOutputJsonSchema).not.toHaveProperty("$schema");
+    });
+
+    it("definitions ラッパーが存在しない（フラットスキーマ）", () => {
+        expect(AIOutputJsonSchema).not.toHaveProperty("definitions");
     });
 });
 

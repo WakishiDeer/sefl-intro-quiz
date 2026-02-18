@@ -140,16 +140,25 @@ export class ClaudeQuizGenerator implements QuizGenerator {
     // ----------------------------------------------------------
 
     private buildUserPrompt(participants: ParticipantProfile[]): string {
+        /** フィールドキー → 日本語ラベルのマッピング */
+        const fieldLabels: Record<string, string> = {
+            hometown: "出身地",
+            hobbies: "趣味",
+            skills: "特技",
+            favoriteFood: "好きな食べ物",
+            surprisingFact: "意外な事実",
+            freeText: "自由記述",
+        };
+
         const profileTexts = participants
-            .map(
-                (p) => `### ${p.nickname}
-- 出身地: ${p.profile.hometown}
-- 趣味: ${p.profile.hobbies}
-- 特技: ${p.profile.skills}
-- 好きな食べ物: ${p.profile.favoriteFood}
-- 意外な事実: ${p.profile.surprisingFact}
-- 自由記述: ${p.profile.freeText}`,
-            )
+            .map((p) => {
+                // 空フィールドを省略して Claude へのトークン消費を削減する
+                const fields = Object.entries(p.profile)
+                    .filter(([, value]) => value.trim().length > 0)
+                    .map(([key, value]) => `- ${fieldLabels[key] ?? key}: ${value}`)
+                    .join("\n");
+                return `### ${p.nickname}\n${fields}`;
+            })
             .join("\n\n");
 
         return `以下の参加者のプロフィール情報をもとに、4択クイズを${TOTAL_QUESTIONS}問生成してください。

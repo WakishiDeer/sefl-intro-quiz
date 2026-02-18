@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 - **Phase 8**: Join ページにリアルタイムルーム一覧表示機能を追加 — Socket.IO subscribe パターンで既存ルーム・参加者をリアルタイム確認可能に（ニックネーム重複の事前把握）。`RoomListPanel` コンポーネント新規作成、`broadcastRoomList` ヘルパー追加、テスト 4 件追加（計 93 テスト全パス）
 - **Phase 9**: ニックネーム重複リアルタイム拒否機能 — 事前チェック（楽観的UI + `room:check-nickname` イベント）と参加時の最終バリデーションの二段構え。case-insensitive なニックネーム比較、インラインエラー表示、`isSubmitting` 未リセットバグ修正、`setCredentials` タイミング修正
 
+### Fixed
+
+- `AIOutputJsonSchema` の `zodToJsonSchema` 呼び出しで `name` オプションを指定していたため、生成されるスキーマが `definitions` ラッパーで包まれ、トップレベルに `type: "object"` が存在しなかった。Anthropic API は `input_schema.type` を必須フィールドとするため `400 invalid_request_error` が発生していた。`name` オプション除去とフラットスキーマ生成に修正し、`$schema` メタキーも除去
+- 全フィールド空のプロフィールでクイズ生成が可能になっていた問題を修正。`ProfileSchema` に `.refine()` で最低1フィールド非空バリデーション追加、`RoomAggregate.getProfileSubmittedCount()` で空プロフィール除外、`ClaudeQuizGenerator.buildUserPrompt()` で空フィールド省略、`ProfileForm` にサーバ側エラーのフィードバック表示を追加
+
 ### Changed
 
 - Claude API 呼び出しを tool_use（Function Calling）に変更し、JSON 出力をスキーマレベルで強制（ADR-0003）

@@ -286,6 +286,77 @@ describe("RoomAggregate", () => {
         it("プロフィール提出者が不足なら false", () => {
             expect(room.canGenerateQuiz(3)).toBe(false);
         });
+
+        it("全フィールド空のプロフィールはカウントしない", () => {
+            const emptyProfile: Profile = {
+                hometown: "",
+                hobbies: "",
+                skills: "",
+                favoriteFood: "",
+                surprisingFact: "",
+                freeText: "",
+            };
+            const data = room.toRoom();
+            room.updateProfile(data.hostId, emptyProfile);
+            expect(room.getProfileSubmittedCount()).toBe(0);
+            expect(room.canGenerateQuiz(1)).toBe(false);
+        });
+
+        it("空白のみのプロフィールはカウントしない", () => {
+            const whitespaceProfile: Profile = {
+                hometown: "   ",
+                hobbies: "  ",
+                skills: "",
+                favoriteFood: "",
+                surprisingFact: "",
+                freeText: "",
+            };
+            const data = room.toRoom();
+            room.updateProfile(data.hostId, whitespaceProfile);
+            expect(room.getProfileSubmittedCount()).toBe(0);
+        });
+    });
+
+    // ----------------------------------------------------------
+    // isProfileEffective
+    // ----------------------------------------------------------
+
+    describe("isProfileEffective", () => {
+        it("1フィールドでも非空なら true", () => {
+            const profile: Profile = {
+                hometown: "Tokyo",
+                hobbies: "",
+                skills: "",
+                favoriteFood: "",
+                surprisingFact: "",
+                freeText: "",
+            };
+            expect(RoomAggregate.isProfileEffective(profile)).toBe(true);
+        });
+
+        it("全フィールド空なら false", () => {
+            const profile: Profile = {
+                hometown: "",
+                hobbies: "",
+                skills: "",
+                favoriteFood: "",
+                surprisingFact: "",
+                freeText: "",
+            };
+            expect(RoomAggregate.isProfileEffective(profile)).toBe(false);
+        });
+
+        it("空白のみなら false", () => {
+            const profile: Profile = {
+                hometown: "   ",
+                hobbies: "  ",
+                skills: "",
+                favoriteFood: "",
+                surprisingFact: "",
+                freeText: "",
+            };
+            expect(RoomAggregate.isProfileEffective(profile)).toBe(false);
+        });
     });
 
     // ----------------------------------------------------------

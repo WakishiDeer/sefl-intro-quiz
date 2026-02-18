@@ -4,9 +4,10 @@
  * ロビーフェーズで参加者が自己紹介情報を入力する。
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { socket } from "../lib/socket.js";
-import { C2S_EVENTS, ProfileSchema, MAX_PROFILE_FIELD_LENGTH } from "@self-intro-quiz/shared";
+import { C2S_EVENTS, S2C_EVENTS, ProfileSchema, MAX_PROFILE_FIELD_LENGTH } from "@self-intro-quiz/shared";
+import type { RoomErrorPayload } from "@self-intro-quiz/shared";
 
 const FIELDS = [
   { key: "hometown", label: "出身地", placeholder: "例: 東京都" },
@@ -30,6 +31,20 @@ export function ProfileForm() {
   });
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // サーバ側バリデーションエラーのリスナー（profile:submit 拒否時のフィードバック）
+  useEffect(() => {
+    const onError = (payload: RoomErrorPayload) => {
+      if (payload.code === "VALIDATION_ERROR" || payload.code === "INVALID_PHASE") {
+        setError(payload.message);
+        setSubmitted(false);
+      }
+    };
+    socket.on(S2C_EVENTS.ROOM_ERROR, onError);
+    return () => {
+      socket.off(S2C_EVENTS.ROOM_ERROR, onError);
+    };
+  }, []);
 
   const handleChange = (key: ProfileField, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));

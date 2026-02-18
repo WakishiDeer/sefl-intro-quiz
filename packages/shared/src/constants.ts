@@ -53,6 +53,9 @@ export const SCORE_PER_CORRECT = 100;
 /** プロフィール各フィールドの最大文字数 */
 export const MAX_PROFILE_FIELD_LENGTH = 100;
 
+/** プロフィールに必要な最低入力フィールド数（1つ以上の非空フィールドが必要） */
+export const MIN_PROFILE_FILLED_FIELDS = 1;
+
 /** プロフィールのフィールド名一覧 */
 export const PROFILE_FIELDS = [
     "hometown",
