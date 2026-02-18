@@ -13,7 +13,6 @@ import {
     JoinRoomSchema,
     CheckNicknameSchema,
     SubmitProfileSchema,
-    HOST_RECONNECT_GRACE_MS,
     MAX_PARTICIPANTS,
 } from "@self-intro-quiz/shared";
 import type {
@@ -318,9 +317,6 @@ export function registerRoomHandlers(
             const reconnected = roomAgg.reconnectParticipant(nickname, socket.id);
 
             if (reconnected) {
-                // Host 再接続タイマーのキャンセル
-                timerService.cancel(`host-transfer:${roomCode}`);
-
                 roomRepo.save(roomAgg.toRoom());
                 socketSessions.set(socket.id, { roomCode, participantId: reconnected.id });
 
@@ -559,7 +555,9 @@ function handleDisconnect(
     }
 
     const roomAgg = RoomAggregate.fromRoom(room);
-    roomAgg.disconnectParticipant(session.participantId);
+
+    // 切断 + ホスト移譲を1つのドメインオペレーションで実行
+    const { newHost, roomEmpty } = roomAgg.disconnectAndTransferHost(session.participantId);
 
     const participant = roomAgg.getParticipant(session.participantId);
     if (!participant) {
@@ -567,9 +565,26 @@ function handleDisconnect(
         return;
     }
 
-    roomRepo.save(roomAgg.toRoom());
     void socket.leave(session.roomCode);
     socketSessions.delete(socket.id);
+
+    // 空ルームの場合は即時削除（ドメインルール: 全参加者切断 → ルーム自動削除）
+    if (roomEmpty) {
+        timerService.cancel(session.roomCode);
+        timerService.cancel(`host-transfer:${session.roomCode}`);
+        roomRepo.delete(session.roomCode);
+        quizRepo.delete(session.roomCode);
+
+        logger.info(
+            { roomCode: session.roomCode, nickname: participant.nickname },
+            "Room auto-deleted (all participants disconnected)",
+        );
+
+        broadcastRoomList(io, roomRepo);
+        return;
+    }
+
+    roomRepo.save(roomAgg.toRoom());
 
     const left: ParticipantLeftPayload = {
         nickname: participant.nickname,
@@ -577,36 +592,16 @@ function handleDisconnect(
     };
     socket.to(session.roomCode).emit(S2C_EVENTS.ROOM_PARTICIPANT_LEFT, left);
 
-    // Host が切断した場合、再接続猶予後に移譲
-    if (roomAgg.isHost(session.participantId)) {
-        timerService.schedule(
-            `host-transfer:${session.roomCode}`,
-            HOST_RECONNECT_GRACE_MS,
-            () => {
-                const latestRoom = roomRepo.findByCode(session.roomCode);
-                if (!latestRoom) return;
-
-                const latestAgg = RoomAggregate.fromRoom(latestRoom);
-                const host = latestAgg.getParticipant(session.participantId);
-
-                // 再接続していなければ移譲
-                if (host && !host.isConnected) {
-                    const newHost = latestAgg.transferHost();
-                    if (newHost) {
-                        roomRepo.save(latestAgg.toRoom());
-                        const changed: HostChangedPayload = {
-                            newHostNickname: newHost.nickname,
-                            newHostId: newHost.id,
-                        };
-                        io.to(session.roomCode).emit(S2C_EVENTS.ROOM_HOST_CHANGED, changed);
-                        logger.info(
-                            { roomCode: session.roomCode, newHost: newHost.nickname },
-                            "Host transferred",
-                        );
-                        broadcastRoomList(io, roomRepo);
-                    }
-                }
-            },
+    // ホスト移譲が発生した場合、即座に通知
+    if (newHost) {
+        const changed: HostChangedPayload = {
+            newHostNickname: newHost.nickname,
+            newHostId: newHost.id,
+        };
+        io.to(session.roomCode).emit(S2C_EVENTS.ROOM_HOST_CHANGED, changed);
+        logger.info(
+            { roomCode: session.roomCode, newHost: newHost.nickname },
+            "Host transferred immediately",
         );
     }
 

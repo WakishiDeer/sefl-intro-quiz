@@ -116,7 +116,6 @@ setInterval(() => {
       roomRepo.delete(code);
       quizRepo.delete(code);
       timerService.cancel(code);
-      timerService.cancel(`host-transfer:${code}`);
       logger.info({ roomCode: code }, "Room expired (TTL)");
     }
   }

@@ -27,9 +27,6 @@ export const DEFAULT_ROOM_TIMEOUT_MS = 30 * 60 * 1000; // 30分
 /** TTL チェック巡回間隔 */
 export const ROOM_CLEANUP_INTERVAL_MS = 60 * 1000; // 60秒
 
-/** Host 切断時の再接続猶予時間 */
-export const HOST_RECONNECT_GRACE_MS = 30 * 1000; // 30秒
-
 // ============================================================
 // Quiz 関連
 // ============================================================

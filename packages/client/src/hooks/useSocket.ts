@@ -25,6 +25,7 @@ import type {
 } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { useQuizStore } from "../stores/useQuizStore.js";
+import { useToastStore } from "../stores/useToastStore.js";
 import { saveSession, clearSession } from "../lib/sessionPersistence.js";
 import { useNavigate } from "react-router";
 
@@ -173,8 +174,12 @@ export function useSocket(): void {
             useRoomStore.getState().updateParticipants(updated);
 
             // 自分が新しい Host になったか
-            if (participantId === payload.newHostId) {
+            const isNewHost = participantId === payload.newHostId;
+            if (isNewHost) {
                 useRoomStore.getState().setHost(true);
+                useToastStore.getState().showToast("あなたが新しいホストになりました");
+            } else {
+                useToastStore.getState().showToast(`${payload.newHostNickname} さんが新しいホストになりました`);
             }
         };
 

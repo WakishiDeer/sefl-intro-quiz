@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 
 ### Added
 
+- **ホスト即時委譲**: ホストが退出・切断した際に即座にホスト権限を最古参の接続中参加者に委譲する機能を追加。30秒の猶予期間を廃止し、ロビー・クイズ進行中・結果画面など全フェーズで即時委譲が動作。`RoomAggregate.disconnectAndTransferHost()` / `hasConnectedParticipants()` メソッド追加
+- **空ルーム自動削除**: 全参加者が切断した場合、ルームを即座に自動削除する機能を追加。ルームとクイズデータを即時クリーンアップし、ルーム一覧からも削除
+- **トースト通知**: ホスト委譲時に全参加者へ通知を表示する `Toast` コンポーネントと `useToastStore` を新規作成。新しいホストには「あなたが新しいホストになりました」、他の参加者には「○○さんが新しいホストになりました」と表示
+
+### Removed
+
+- `HOST_RECONNECT_GRACE_MS` 定数を削除（即時ホスト委譲への変更に伴い不要に）
+
+### Changed
+
 - **ロビー復帰機能**: クイズ終了後にルームを閉じずにロビーへ戻れる機能を追加。Host が結果画面で「ロビーに戻る」ボタンを押すと、全参加者がロビーフェーズに戻り、プロフィールを保持したまま次のクイズを生成可能に。`RoomAggregate.backToLobby()` メソッド追加、`room:back-to-lobby` イベント（C2S / S2C）追加、`ResultView` に「ロビーに戻る」ボタン追加
 - **セッション維持（リロード復帰）**: ブラウザリロードやタブ再開時にルームへ自動復帰する機能を追加。`localStorage` に `roomCode` / `nickname` を保存し、リロード後に自動で `socket.connect()` → `room:join` を再送信。既存のニックネームベース再接続（`reconnectParticipant`）で全状態（フェーズ・スコア・現在の問題）が復元される。`RoomPage` に再接続中ローディング表示（5秒タイムアウト付き）を追加
 - **タブ間セッション管理（後発タブ優先）**: BroadcastChannel を使い、新しいタブが同じルームを開いたら旧タブの Socket を自動切断し、セッションを引き継ぐ仕組みを追加（ADR-0004）。旧タブには「別のタブで開かれています」画面と「このタブで再開する」ボタンを表示。`TopPage` の `clearSession` を条件付きに変更し、他タブのセッションを破壊しないよう改善。BroadcastChannel 未サポート環境では従来動作にフォールバック

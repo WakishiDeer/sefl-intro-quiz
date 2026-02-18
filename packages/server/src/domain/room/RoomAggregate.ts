@@ -240,6 +240,43 @@ export class RoomAggregate {
         return earliest;
     }
 
+    /**
+     * 参加者を切断し、ホストだった場合は即座にホスト権限を移譲する。
+     * 全参加者が切断済みかどうか（空ルーム判定）も返す。
+     *
+     * ドメインルール:
+     * - ホストが切断した場合、接続中の最古参参加者にホスト権限が即時移譲される
+     * - 移譲先がいない場合（全員切断）、ルームは空と判定される
+     * - 非ホストの切断ではホスト移譲は発生しない
+     *
+     * @param participantId - 切断する参加者の ID
+     * @returns newHost: 新しいホスト（移譲が発生した場合）、roomEmpty: 全員切断かどうか
+     */
+    disconnectAndTransferHost(participantId: string): { newHost: Participant | null; roomEmpty: boolean } {
+        this.disconnectParticipant(participantId);
+
+        let newHost: Participant | null = null;
+        if (this.isHost(participantId)) {
+            newHost = this.transferHost();
+        }
+
+        const roomEmpty = !this.hasConnectedParticipants();
+        return { newHost, roomEmpty };
+    }
+
+    /**
+     * 接続中の参加者が1人以上いるかを判定する。
+     *
+     * ドメインルール: 全参加者が切断した場合、ルームは「空」と見なされ、
+     * 自動削除の対象となる。
+     */
+    hasConnectedParticipants(): boolean {
+        for (const p of this.room.participants.values()) {
+            if (p.isConnected) return true;
+        }
+        return false;
+    }
+
     // ----------------------------------------------------------
     // フェーズ管理
     // ----------------------------------------------------------

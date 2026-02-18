@@ -257,6 +257,83 @@ describe("RoomAggregate", () => {
     });
 
     // ----------------------------------------------------------
+    // disconnectAndTransferHost
+    // ----------------------------------------------------------
+
+    describe("disconnectAndTransferHost", () => {
+        it("ホストが切断した場合、最古参の接続中参加者にホストが移る", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            room.addParticipant("Carol", "socket-carol");
+            const data = room.toRoom();
+
+            const result = room.disconnectAndTransferHost(data.hostId);
+            expect(result.newHost).not.toBeNull();
+            expect(result.newHost!.id).toBe(bob.id);
+            expect(result.newHost!.isHost).toBe(true);
+            expect(result.roomEmpty).toBe(false);
+            expect(room.isHost(bob.id)).toBe(true);
+        });
+
+        it("非ホストが切断した場合、ホストは変更されない", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            const data = room.toRoom();
+
+            const result = room.disconnectAndTransferHost(bob.id);
+            expect(result.newHost).toBeNull();
+            expect(result.roomEmpty).toBe(false);
+            expect(room.isHost(data.hostId)).toBe(true);
+        });
+
+        it("ホスト以外に接続中参加者がいない場合、newHost: null & roomEmpty: true", () => {
+            const data = room.toRoom();
+
+            const result = room.disconnectAndTransferHost(data.hostId);
+            expect(result.newHost).toBeNull();
+            expect(result.roomEmpty).toBe(true);
+        });
+
+        it("最後の非ホスト参加者が切断した場合、roomEmpty: false（ホストはまだ接続中）", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+
+            const result = room.disconnectAndTransferHost(bob.id);
+            expect(result.newHost).toBeNull();
+            expect(result.roomEmpty).toBe(false);
+        });
+
+        it("全員切断後に roomEmpty: true となる", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            const data = room.toRoom();
+
+            room.disconnectAndTransferHost(bob.id);
+            const result = room.disconnectAndTransferHost(data.hostId);
+            expect(result.roomEmpty).toBe(true);
+        });
+    });
+
+    // ----------------------------------------------------------
+    // hasConnectedParticipants
+    // ----------------------------------------------------------
+
+    describe("hasConnectedParticipants", () => {
+        it("接続中の参加者がいれば true を返す", () => {
+            expect(room.hasConnectedParticipants()).toBe(true);
+        });
+
+        it("全員切断で false を返す", () => {
+            const data = room.toRoom();
+            room.disconnectParticipant(data.hostId);
+            expect(room.hasConnectedParticipants()).toBe(false);
+        });
+
+        it("1人でも接続中なら true を返す", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            const data = room.toRoom();
+            room.disconnectParticipant(data.hostId);
+            expect(room.hasConnectedParticipants()).toBe(true);
+        });
+    });
+
+    // ----------------------------------------------------------
     // フェーズ管理
     // ----------------------------------------------------------
 
