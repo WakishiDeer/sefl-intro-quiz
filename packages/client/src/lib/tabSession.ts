@@ -112,10 +112,10 @@ export class TabSession {
                     done();
                 }
             };
-            this.channel.addEventListener("message", onYield);
+            this.channel?.addEventListener("message", onYield);
 
             // SESSION_CLAIM を送信
-            this.channel.postMessage({
+            this.channel?.postMessage({
                 type: "SESSION_CLAIM",
                 tabId: this.tabId,
                 timestamp: Date.now(),
@@ -162,9 +162,9 @@ export class TabSession {
                     done(true);
                 }
             };
-            this.channel.addEventListener("message", onActive);
+            this.channel?.addEventListener("message", onActive);
 
-            this.channel.postMessage({
+            this.channel?.postMessage({
                 type: "SESSION_PROBE",
                 tabId: this.tabId,
             } satisfies TabMessage);

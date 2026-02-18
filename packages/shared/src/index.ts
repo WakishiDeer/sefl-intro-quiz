@@ -68,6 +68,7 @@ export {
     RATE_LIMIT_JOIN_PER_MIN,
     RATE_LIMIT_HTTP_PER_MIN,
     RATE_LIMIT_WINDOW_MS,
+    DISCONNECT_REMOVE_TIMEOUT_MS,
 } from "./constants.js";
 
 // イベント名

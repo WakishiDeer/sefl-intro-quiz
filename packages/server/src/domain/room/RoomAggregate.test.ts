@@ -311,6 +311,60 @@ describe("RoomAggregate", () => {
     });
 
     // ----------------------------------------------------------
+    // leaveAndTransferHost
+    // ----------------------------------------------------------
+
+    describe("leaveAndTransferHost", () => {
+        it("ホストが退出した場合、最古参の接続中参加者にホストが移り、ルームから削除される", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            room.addParticipant("Carol", "socket-carol");
+            const hostId = room.hostId; // toRoom() は参照を返すためここで ID を保存
+
+            const result = room.leaveAndTransferHost(hostId);
+            expect(result.newHost).not.toBeNull();
+            expect(result.newHost!.id).toBe(bob.id);
+            expect(result.newHost!.isHost).toBe(true);
+            expect(result.roomEmpty).toBe(false);
+            // 元ホストはもう参加者に含まれない
+            expect(room.getParticipant(hostId)).toBeUndefined();
+            expect(room.participantCount).toBe(2);
+        });
+
+        it("非ホストが退出した場合、ホストは変更されずルームから削除される", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            const hostId = room.hostId;
+
+            const result = room.leaveAndTransferHost(bob.id);
+            expect(result.newHost).toBeNull();
+            expect(result.roomEmpty).toBe(false);
+            expect(room.isHost(hostId)).toBe(true);
+            expect(room.getParticipant(bob.id)).toBeUndefined();
+            expect(room.participantCount).toBe(1);
+        });
+
+        it("最後の参加者が退出した場合、roomEmpty: true", () => {
+            const hostId = room.hostId;
+
+            const result = room.leaveAndTransferHost(hostId);
+            expect(result.newHost).toBeNull();
+            expect(result.roomEmpty).toBe(true);
+            expect(room.participantCount).toBe(0);
+        });
+
+        it("切断中の参加者がいても退出した参加者は削除される", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            room.disconnectParticipant(bob.id);
+            const hostId = room.hostId;
+
+            // ホストが退出。Bob は切断中なのでホスト移譲先がないが、Bob は残る
+            const result = room.leaveAndTransferHost(hostId);
+            expect(result.roomEmpty).toBe(false);
+            expect(room.participantCount).toBe(1);
+            expect(room.getParticipant(bob.id)).toBeDefined();
+        });
+    });
+
+    // ----------------------------------------------------------
     // hasConnectedParticipants
     // ----------------------------------------------------------
 
@@ -622,6 +676,48 @@ describe("RoomAggregate", () => {
             // clientId 省略 → DUPLICATE_CLIENT にはならない
             const carol = room.addParticipant("Carol", "socket-carol");
             expect(carol.nickname).toBe("Carol");
+        });
+    });
+
+    describe("removeDisconnectedByClientId", () => {
+        it("切断中の同一 clientId 参加者を削除して返す", () => {
+            const bob = room.addParticipant("Bob", "socket-bob", -1, "client-123");
+            room.disconnectParticipant(bob.id);
+
+            const removed = room.removeDisconnectedByClientId("client-123");
+            expect(removed).not.toBeNull();
+            expect(removed!.nickname).toBe("Bob");
+            expect(room.getParticipant(bob.id)).toBeUndefined();
+        });
+
+        it("接続中の同一 clientId 参加者は対象外（null を返す）", () => {
+            room.addParticipant("Bob", "socket-bob", -1, "client-123");
+
+            const removed = room.removeDisconnectedByClientId("client-123");
+            expect(removed).toBeNull();
+        });
+
+        it("clientId が未設定の切断中参加者は対象外", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            room.disconnectParticipant(bob.id);
+
+            const removed = room.removeDisconnectedByClientId("client-123");
+            expect(removed).toBeNull();
+        });
+
+        it("該当する参加者がいなければ null を返す", () => {
+            const removed = room.removeDisconnectedByClientId("client-999");
+            expect(removed).toBeNull();
+        });
+
+        it("削除後に同じニックネームが使用可能になる", () => {
+            const bob = room.addParticipant("Bob", "socket-bob", -1, "client-123");
+            room.disconnectParticipant(bob.id);
+            room.removeDisconnectedByClientId("client-123");
+
+            // 同じニックネームで新しい参加者が追加できる
+            const newBob = room.addParticipant("Bob", "socket-new", -1, "client-123");
+            expect(newBob.nickname).toBe("Bob");
         });
     });
 

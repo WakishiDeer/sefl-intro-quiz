@@ -160,10 +160,17 @@ export function useSocket(): void {
 
         const onParticipantLeft = (payload: ParticipantLeftPayload) => {
             const { participants } = useRoomStore.getState();
-            const updated = participants.map((p) =>
-                p.nickname === payload.nickname ? { ...p, isConnected: false } : p,
-            );
-            useRoomStore.getState().updateParticipants(updated);
+            if (payload.removed) {
+                // 明示的退出 or 切断タイムアウト → 参加者を一覧から完全削除
+                const updated = participants.filter((p) => p.nickname !== payload.nickname);
+                useRoomStore.getState().updateParticipants(updated);
+            } else {
+                // 一時切断 → グレー表示（再接続の可能性あり）
+                const updated = participants.map((p) =>
+                    p.nickname === payload.nickname ? { ...p, isConnected: false } : p,
+                );
+                useRoomStore.getState().updateParticipants(updated);
+            }
         };
 
         const onHostChanged = (payload: HostChangedPayload) => {

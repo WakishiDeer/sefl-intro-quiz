@@ -104,6 +104,11 @@ export interface ParticipantJoinedPayload {
 export interface ParticipantLeftPayload {
     nickname: string;
     participantCount: number;
+    /**
+     * true の場合、参加者はルームから完全に削除された（明示的退出 or 切断タイムアウト）。
+     * false / undefined の場合、一時的な切断（グレー表示、再接続可能）。
+     */
+    removed?: boolean;
 }
 
 /** room:host-changed ペイロード */

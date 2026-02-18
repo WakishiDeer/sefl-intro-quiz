@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 
 ### Added
 
+- **ルーム退出ボタン**: ロビー画面に「ルームから退出する」ボタンを追加。全参加者（ホスト含む）が明示的にルームを離脱可能に。退出時はセッションをクリアしトップページへ遷移する
+- **切断タイムアウトによる参加者自動削除**: タブを閉じた（切断した）参加者を5分後にルームから完全削除する機能を追加。切断直後はグレー表示（再接続猶予あり）、タイムアウト後は参加者一覧から除去される
+  - `DISCONNECT_REMOVE_TIMEOUT_MS` 定数を `@self-intro-quiz/shared` に追加（デフォルト5分）
+  - `RoomAggregate.leaveAndTransferHost()` メソッド追加（参加者の完全削除 + ホスト移譲）
+  - `ParticipantLeftPayload` に `removed` フィールドを追加（`true`: 完全削除、`false`/`undefined`: 一時切断）
+  - サーバ側で `room:leave`（明示的退出）と `disconnect`（タブ閉じ）を分離処理
+  - 再接続時に切断タイムアウトのタイマーを自動キャンセル
+- **同一ブラウザ再参加時の旧参加者自動削除**: タブを閉じた後に同じブラウザから別ニックネームで再参加した場合、グレー表示の旧参加者を即座に自動削除する機能を追加。`RoomAggregate.removeDisconnectedByClientId()` メソッド追加。`room:join` ハンドラで `addParticipant()` 前に呼び出し、切断タイマーのキャンセルと他参加者への通知も実行
 - **クイズ中の参加者一覧サイドバー**: `playing` / `revealing` フェーズで画面右側に参加者一覧を常時表示。ホストバッジ・接続状態も確認可能。モバイルではメイン下にスタック表示（レスポンシブ対応）
 
 ### Fixed

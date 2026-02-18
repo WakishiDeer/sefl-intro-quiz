@@ -7,10 +7,12 @@
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { useQuizStore } from "../stores/useQuizStore.js";
 import { socket } from "../lib/socket.js";
+import { clearSession } from "../lib/sessionPersistence.js";
 import { C2S_EVENTS } from "@self-intro-quiz/shared";
 import { ProfileForm } from "./ProfileForm.js";
 import { ParticipantList } from "./ParticipantList.js";
 import { RoomCodeDisplay } from "./RoomCodeDisplay.js";
+import { useNavigate } from "react-router";
 
 export function LobbyView() {
   const roomCode = useRoomStore((s) => s.roomCode);
@@ -20,6 +22,7 @@ export function LobbyView() {
   const isGenerating = useQuizStore((s) => s.isGenerating);
   const isReady = useQuizStore((s) => s.isReady);
   const generateError = useQuizStore((s) => s.generateError);
+  const navigate = useNavigate();
 
   const handleGenerate = () => {
     socket.emit(C2S_EVENTS.QUIZ_GENERATE);
@@ -32,6 +35,16 @@ export function LobbyView() {
   const handleCloseRoom = () => {
     if (confirm("ルームを閉じますか？全員が退出します。")) {
       socket.emit(C2S_EVENTS.ROOM_CLOSE);
+    }
+  };
+
+  const handleLeaveRoom = () => {
+    if (confirm("ルームから退出しますか？")) {
+      socket.emit(C2S_EVENTS.ROOM_LEAVE);
+      clearSession();
+      useRoomStore.getState().reset();
+      useQuizStore.getState().reset();
+      navigate("/");
     }
   };
 
@@ -104,6 +117,16 @@ export function LobbyView() {
               </button>
             </div>
           )}
+
+          {/* 全員: 退出ボタン */}
+          <div className={isHost ? "mt-2" : "mt-4"}>
+            <button
+              onClick={handleLeaveRoom}
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
+            >
+              🚪 ルームから退出する
+            </button>
+          </div>
         </div>
       </div>
     </div>

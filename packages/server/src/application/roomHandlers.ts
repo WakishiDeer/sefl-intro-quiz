@@ -14,6 +14,7 @@ import {
     CheckNicknameSchema,
     SubmitProfileSchema,
     MAX_PARTICIPANTS,
+    DISCONNECT_REMOVE_TIMEOUT_MS,
 } from "@self-intro-quiz/shared";
 import type {
     RoomStateSync,
@@ -329,6 +330,9 @@ export function registerRoomHandlers(
                 roomRepo.save(roomAgg.toRoom());
                 socketSessions.set(socket.id, { roomCode, participantId: reconnected.id });
 
+                // 切断タイムアウトのタイマーをキャンセル（再接続成功のため削除不要）
+                timerService.cancel(`disconnect:${roomCode}:${reconnected.id}`);
+
                 void socket.join(roomCode);
 
                 const roomState = buildRoomStateSync(roomAgg, quizRepo, reconnected);
@@ -350,6 +354,29 @@ export function registerRoomHandlers(
 
                 broadcastRoomList(io, roomRepo);
                 return;
+            }
+
+            // 同一 clientId の切断中参加者を自動削除
+            // (例: "aa" でタブを閉じた後、同じブラウザから "bb" で再参加)
+            if (clientId) {
+                const removed = roomAgg.removeDisconnectedByClientId(clientId);
+                if (removed) {
+                    // 切断タイムアウトのタイマーをキャンセル
+                    timerService.cancel(`disconnect:${roomCode}:${removed.id}`);
+
+                    // 他の参加者に完全削除を通知
+                    const removedPayload: ParticipantLeftPayload = {
+                        nickname: removed.nickname,
+                        participantCount: roomAgg.getConnectedParticipants().length,
+                        removed: true,
+                    };
+                    socket.to(roomCode).emit(S2C_EVENTS.ROOM_PARTICIPANT_LEFT, removedPayload);
+
+                    logger.info(
+                        { roomCode, removedNickname: removed.nickname, newNickname: nickname },
+                        "Disconnected participant auto-removed (same clientId)",
+                    );
+                }
             }
 
             // 新規参加
@@ -386,10 +413,10 @@ export function registerRoomHandlers(
     });
 
     // ----------------------------------------------------------
-    // room:leave
+    // room:leave（明示的退出 — 参加者を完全削除）
     // ----------------------------------------------------------
     socket.on(C2S_EVENTS.ROOM_LEAVE, () => {
-        handleDisconnect(io, socket, roomRepo, quizRepo, timerService);
+        handleExplicitLeave(io, socket, roomRepo, quizRepo, timerService);
     });
 
     // ----------------------------------------------------------
@@ -429,6 +456,12 @@ export function registerRoomHandlers(
 
             timerService.cancel(session.roomCode);
             timerService.cancel(`host-transfer:${session.roomCode}`);
+
+            // 切断中参加者の削除タイマーもキャンセル
+            for (const p of roomAgg.toRoom().participants.values()) {
+                timerService.cancel(`disconnect:${session.roomCode}:${p.id}`);
+            }
+
             roomRepo.delete(session.roomCode);
             quizRepo.delete(session.roomCode);
 
@@ -544,7 +577,8 @@ export function registerRoomHandlers(
 }
 
 // ============================================================
-// disconnect / leave の共通処理
+// disconnect（タブ閉じ等の一時切断）の処理
+// 参加者を isConnected=false にして残し、一定時間後に完全削除する。
 // ============================================================
 
 function handleDisconnect(
@@ -617,6 +651,144 @@ function handleDisconnect(
     logger.info(
         { roomCode: session.roomCode, nickname: participant.nickname },
         "Participant disconnected",
+    );
+
+    // 切断タイムアウト: 一定時間再接続がなければ参加者を完全削除
+    const timerKey = `disconnect:${session.roomCode}:${session.participantId}`;
+    timerService.schedule(timerKey, DISCONNECT_REMOVE_TIMEOUT_MS, () => {
+        const currentRoom = roomRepo.findByCode(session.roomCode);
+        if (!currentRoom) return;
+
+        const currentAgg = RoomAggregate.fromRoom(currentRoom);
+        const p = currentAgg.getParticipant(session.participantId);
+
+        // 既に再接続済み or 削除済みの場合はスキップ
+        if (!p || p.isConnected) return;
+
+        // 完全削除
+        const { newHost: newHostAfterRemoval, roomEmpty: emptyAfterRemoval } =
+            currentAgg.leaveAndTransferHost(session.participantId);
+
+        if (emptyAfterRemoval) {
+            timerService.cancel(session.roomCode);
+            roomRepo.delete(session.roomCode);
+            quizRepo.delete(session.roomCode);
+            logger.info(
+                { roomCode: session.roomCode, nickname: p.nickname },
+                "Room auto-deleted (last participant removed by disconnect timeout)",
+            );
+            broadcastRoomList(io, roomRepo);
+            return;
+        }
+
+        roomRepo.save(currentAgg.toRoom());
+
+        // 他の参加者に完全削除を通知
+        const removedPayload: ParticipantLeftPayload = {
+            nickname: p.nickname,
+            participantCount: currentAgg.getConnectedParticipants().length,
+            removed: true,
+        };
+        io.to(session.roomCode).emit(S2C_EVENTS.ROOM_PARTICIPANT_LEFT, removedPayload);
+
+        if (newHostAfterRemoval) {
+            const changed: HostChangedPayload = {
+                newHostNickname: newHostAfterRemoval.nickname,
+                newHostId: newHostAfterRemoval.id,
+            };
+            io.to(session.roomCode).emit(S2C_EVENTS.ROOM_HOST_CHANGED, changed);
+        }
+
+        logger.info(
+            { roomCode: session.roomCode, nickname: p.nickname },
+            "Participant removed by disconnect timeout",
+        );
+
+        broadcastRoomList(io, roomRepo);
+    });
+
+    broadcastRoomList(io, roomRepo);
+}
+
+// ============================================================
+// room:leave（明示的退出）の処理
+// 参加者を即座にルームから完全削除する。
+// ============================================================
+
+function handleExplicitLeave(
+    io: Server,
+    socket: Socket,
+    roomRepo: RoomRepository,
+    quizRepo: QuizRepository,
+    timerService: NodeTimerService,
+): void {
+    const session = socketSessions.get(socket.id);
+    if (!session) return;
+
+    const room = roomRepo.findByCode(session.roomCode);
+    if (!room) {
+        socketSessions.delete(socket.id);
+        return;
+    }
+
+    const roomAgg = RoomAggregate.fromRoom(room);
+    const participant = roomAgg.getParticipant(session.participantId);
+    if (!participant) {
+        socketSessions.delete(socket.id);
+        return;
+    }
+
+    const nickname = participant.nickname;
+
+    // 完全削除 + ホスト移譲
+    const { newHost, roomEmpty } = roomAgg.leaveAndTransferHost(session.participantId);
+
+    void socket.leave(session.roomCode);
+    socketSessions.delete(socket.id);
+
+    // 切断タイムアウトのタイマーがあればキャンセル
+    timerService.cancel(`disconnect:${session.roomCode}:${session.participantId}`);
+
+    if (roomEmpty) {
+        timerService.cancel(session.roomCode);
+        timerService.cancel(`host-transfer:${session.roomCode}`);
+        roomRepo.delete(session.roomCode);
+        quizRepo.delete(session.roomCode);
+
+        logger.info(
+            { roomCode: session.roomCode, nickname },
+            "Room auto-deleted (last participant left explicitly)",
+        );
+
+        broadcastRoomList(io, roomRepo);
+        return;
+    }
+
+    roomRepo.save(roomAgg.toRoom());
+
+    // removed: true で完全削除を通知
+    const left: ParticipantLeftPayload = {
+        nickname,
+        participantCount: roomAgg.getConnectedParticipants().length,
+        removed: true,
+    };
+    socket.to(session.roomCode).emit(S2C_EVENTS.ROOM_PARTICIPANT_LEFT, left);
+
+    if (newHost) {
+        const changed: HostChangedPayload = {
+            newHostNickname: newHost.nickname,
+            newHostId: newHost.id,
+        };
+        io.to(session.roomCode).emit(S2C_EVENTS.ROOM_HOST_CHANGED, changed);
+        logger.info(
+            { roomCode: session.roomCode, newHost: newHost.nickname },
+            "Host transferred on explicit leave",
+        );
+    }
+
+    logger.info(
+        { roomCode: session.roomCode, nickname },
+        "Participant left explicitly",
     );
 
     broadcastRoomList(io, roomRepo);

@@ -287,6 +287,30 @@ export class RoomAggregate {
     }
 
     /**
+     * 参加者を明示的にルームから退出させる（完全削除）。
+     * ホストだった場合は先にホスト権限を移譲する。
+     *
+     * disconnectAndTransferHost との違い:
+     * - disconnect: isConnected=false にして参加者を残す（再接続猶予あり）
+     * - leave: 参加者を完全に削除する（退出ボタン押下 / 切断タイムアウト後）
+     *
+     * @param participantId - 退出する参加者の ID
+     * @returns newHost: 新しいホスト（移譲が発生した場合）、roomEmpty: 参加者が0人になったか
+     */
+    leaveAndTransferHost(participantId: string): { newHost: Participant | null; roomEmpty: boolean } {
+        let newHost: Participant | null = null;
+
+        if (this.isHost(participantId)) {
+            newHost = this.transferHost();
+        }
+
+        this.removeParticipant(participantId);
+
+        const roomEmpty = this.room.participants.size === 0;
+        return { newHost, roomEmpty };
+    }
+
+    /**
      * 接続中の参加者が1人以上いるかを判定する。
      *
      * ドメインルール: 全参加者が切断した場合、ルームは「空」と見なされ、
@@ -386,6 +410,25 @@ export class RoomAggregate {
             }
         }
         return false;
+    }
+
+    /**
+     * 同一 clientId の切断中参加者を検索して完全削除する。
+     *
+     * ユースケース: ユーザーが "aa" でタブを閉じた後、同じブラウザから "bb" で
+     * 再参加する場合に、グレー表示の "aa" を即座にクリーンアップする。
+     *
+     * @param clientId - ブラウザ固有識別子
+     * @returns 削除された参加者。該当なしなら null
+     */
+    removeDisconnectedByClientId(clientId: string): Participant | null {
+        for (const p of this.room.participants.values()) {
+            if (p.clientId === clientId && !p.isConnected) {
+                this.removeParticipant(p.id);
+                return p;
+            }
+        }
+        return null;
     }
 
     /**
