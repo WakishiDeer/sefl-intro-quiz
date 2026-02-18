@@ -658,16 +658,36 @@ export const AIOutputSchema = z.object({
 
 ```typescript
 {
-  model: "claude-sonnet-4-5-20241022",
+  model: "claude-sonnet-4-5-20250929",
   max_tokens: 4096,
   system: SYSTEM_PROMPT,
   messages: [
     { role: "user", content: userPrompt },
   ],
+  tools: [QUIZ_TOOL],
+  tool_choice: { type: "tool", name: "generate_quiz" },
 }
 ```
 
-Claude API は `response_format` を持たないため、システムプロンプトで JSON 出力を指示し、レスポンスから JSON 部分を抽出・パースする。`temperature` はデフォルト（1.0）を使用。
+Claude API の **tool_use（Function Calling）** を使用して構造化出力を強制する。
+`tool_choice` でツール使用を強制し、テキスト出力を防止する。
+`temperature` はデフォルト（1.0）を使用。
+
+#### ツール定義
+
+```typescript
+const QUIZ_TOOL: Anthropic.Tool = {
+  name: "generate_quiz",
+  description: "参加者プロフィールから生成した4択クイズ10問を返す",
+  input_schema: AIOutputJsonSchema,  // Zod スキーマから自動生成
+};
+```
+
+`input_schema` は `shared` パッケージの `AIOutputSchema`（Zod）から `zod-to-json-schema` で自動生成した JSON Schema を使用。
+スキーマ変更時は Zod 定義のみを修正すれば JSON Schema も自動追従する（Single Source of Truth）。
+
+tool_use レスポンスの `.input` は既にパース済みオブジェクトのため、JSON パースエラーは原理的に発生しない。
+Zod バリデーションは tool_use と併用して残す（文字列長などの細かい制約は JSON Schema だけでは担保できないため）。
 
 ### 4.6 リトライ / フォールバック
 

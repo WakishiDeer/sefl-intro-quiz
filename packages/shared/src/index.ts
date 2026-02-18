@@ -87,6 +87,7 @@ export {
     SubmitAnswerSchema,
     AIQuestionSchema,
     AIOutputSchema,
+    AIOutputJsonSchema,
 } from "./validation.js";
 export type {
     NicknameInput,

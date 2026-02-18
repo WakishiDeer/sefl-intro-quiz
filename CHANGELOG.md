@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 
 ### Changed
 
+- Claude API 呼び出しを tool_use（Function Calling）に変更し、JSON 出力をスキーマレベルで強制（ADR-0003）
+  - `extractText` / `extractJson` によるテキストパースを廃止し、`tool_use` ブロックの `.input` を直接取得
+  - JSON Schema は `shared` の `AIOutputSchema`（Zod）から `zod-to-json-schema` で自動生成（Single Source of Truth）
+  - `ClaudeQuizGenerator` のユニットテスト新規追加
 - AI プロバイダーを OpenAI GPT-4o-mini から Anthropic Claude Sonnet 4.5 に変更（ADR-0002）
 - `OpenAIQuizGenerator` → `ClaudeQuizGenerator` にリネーム
 - 環境変数 `OPENAI_API_KEY` → `ANTHROPIC_API_KEY` に変更

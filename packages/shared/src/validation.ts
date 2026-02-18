@@ -6,6 +6,7 @@
  */
 
 import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import {
     MIN_NICKNAME_LENGTH,
     MAX_NICKNAME_LENGTH,
@@ -91,6 +92,21 @@ export const AIQuestionSchema = z.object({
 export const AIOutputSchema = z.object({
     questions: z.array(AIQuestionSchema).length(10),
 });
+
+// ============================================================
+// AI 出力 JSON Schema（Claude tool_use 用）
+// Zod スキーマから自動生成し、単一の定義源（Single Source of Truth）を維持する。
+// スキーマ変更時は上の Zod 定義のみを修正すれば JSON Schema も自動追従する。
+// ============================================================
+
+/**
+ * Claude API の tool_use で使用する input_schema。
+ * AIOutputSchema (Zod) から自動生成された JSON Schema オブジェクト。
+ */
+export const AIOutputJsonSchema = zodToJsonSchema(AIOutputSchema, {
+    name: "AIOutput",
+    $refStrategy: "none",
+}) as Record<string, unknown>;
 
 // ============================================================
 // 型エクスポート

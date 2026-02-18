@@ -19,11 +19,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "zod": "^3.23"
+    "zod": "^3.23",
+    "zod-to-json-schema": "^3.25.1"
   },
   "devDependencies": {
-    "typescript": "^5.6",
     "rimraf": "^6.0",
+    "typescript": "^5.6",
     "vitest": "^2.1"
   }
 }
