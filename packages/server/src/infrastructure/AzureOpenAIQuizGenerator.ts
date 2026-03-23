@@ -1,15 +1,15 @@
 /**
- * ClaudeQuizGenerator — QuizGenerator の Anthropic Claude 実装
+ * AzureOpenAIQuizGenerator — QuizGenerator の Azure OpenAI 実装
  *
- * Claude Sonnet API の tool_use（Function Calling）を使用して
+ * Azure OpenAI Service の GPT-5.4 + Structured Outputs（function calling）を使用して
  * 参加者プロフィールから4択クイズを構造化データとして生成する。
  *
  * JSON Schema は shared パッケージの Zod スキーマから自動生成し、
- * 単一の定義源（Single Source of Truth）を維持する。
- * スキーマ変更時は shared の AIOutputSchema のみを更新すればよい。
+ * Claude 実装と同じ Single Source of Truth を維持する。
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { AzureOpenAI } from "openai";
+import type { ChatCompletion, ChatCompletionTool } from "openai/resources/chat/completions.js";
 import type { ProfileFieldDefinition, Question } from "@self-intro-quiz/shared";
 import type { QuizCountConfig } from "@self-intro-quiz/shared";
 import {
@@ -28,7 +28,7 @@ import { logger } from "../utils/logger.js";
 
 /**
  * クイズ生成の指示プロンプト。
- * 問題数は動的に決定されるため、プレースホルダーを使用する。
+ * 問題数は動的に決定されるため、引数で注入する。
  */
 function buildSystemPrompt(quizConfig: QuizCountConfig): string {
     return `あなたは「自己紹介クイズ」の出題者です。
@@ -70,45 +70,52 @@ function buildSystemPrompt(quizConfig: QuizCountConfig): string {
 }
 
 // ============================================================
-// ツール定義（Claude tool_use）
+// ツール定義（OpenAI function calling）
 // ============================================================
 
-/** ツール名 — レスポンスから tool_use ブロックを検索する際に使用 */
 const TOOL_NAME = "generate_quiz";
 
-/**
- * Claude API に渡す tool 定義。
- * input_schema は shared の AIOutputSchema (Zod) から自動生成した JSON Schema。
- * スキーマを変更する場合は shared/src/validation.ts の AIOutputSchema を修正する。
- */
-const QUIZ_TOOL: Anthropic.Tool = {
-    name: TOOL_NAME,
-    description:
-        "参加者プロフィールから生成したクイズ（4択問題と⭕❌問題のミックス）を返す。" +
-        "必ずこのツールを使って結果を返してください。",
-    input_schema: AIOutputJsonSchema as Anthropic.Tool.InputSchema,
+const QUIZ_TOOL: ChatCompletionTool = {
+    type: "function",
+    function: {
+        name: TOOL_NAME,
+        description:
+            "参加者プロフィールから生成したクイズ（4択問題と⭕❌問題のミックス）を返す。" +
+            "必ずこのツールを使って結果を返してください。",
+        parameters: AIOutputJsonSchema as Record<string, unknown>,
+    },
 };
 
 // ============================================================
-// ClaudeQuizGenerator
+// AzureOpenAIQuizGenerator
 // ============================================================
 
-export class ClaudeQuizGenerator implements QuizGenerator {
-    private client: Anthropic;
+/**
+ * Azure OpenAI Service を使ったクイズ生成の実装。
+ * GPT-5.4 の function calling で構造化出力を取得する。
+ */
+export class AzureOpenAIQuizGenerator implements QuizGenerator {
+    private client: AzureOpenAI;
     private model: string;
 
-    constructor(apiKey: string, model = "claude-sonnet-4-5-20250929") {
-        this.client = new Anthropic({ apiKey });
-        this.model = model;
+    /**
+     * @param endpoint - Azure OpenAI のエンドポイント URL
+     * @param apiKey - Azure OpenAI の API キー
+     * @param deploymentName - デプロイメント名（モデルのデプロイ名）
+     */
+    constructor(endpoint: string, apiKey: string, deploymentName: string) {
+        this.client = new AzureOpenAI({
+            endpoint,
+            apiKey,
+            apiVersion: "2025-03-01-preview",
+        });
+        this.model = deploymentName;
     }
 
     /**
      * 参加者プロフィールからクイズを生成する。
-     * Claude の tool_use を使い、JSON Schema で出力構造を強制する。
+     * GPT の function calling を使い、JSON Schema で出力構造を強制する。
      * 最大 AI_MAX_RETRIES 回リトライする（exponential backoff）。
-     *
-     * @param profileFields - 現在のプロフィール項目定義（ラベル解決用）
-     * @throws Error 全リトライ失敗時
      */
     async generate(participants: ParticipantProfile[], profileFields: ProfileFieldDefinition[], quizConfig: QuizCountConfig): Promise<Question[]> {
         const userPrompt = this.buildUserPrompt(participants, profileFields, quizConfig);
@@ -124,27 +131,24 @@ export class ClaudeQuizGenerator implements QuizGenerator {
                     await this.sleep(delay);
                 }
 
-                const response = await this.client.messages.create({
+                const response = await this.client.chat.completions.create({
                     model: this.model,
-                    max_tokens: AI_MAX_TOKENS,
-                    system: systemPrompt,
-                    messages: [{ role: "user", content: userPrompt }],
+                    max_completion_tokens: AI_MAX_TOKENS,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: userPrompt },
+                    ],
                     tools: [QUIZ_TOOL],
-                    tool_choice: { type: "tool", name: TOOL_NAME },
+                    tool_choice: { type: "function", function: { name: TOOL_NAME } },
                 });
 
                 const toolInput = this.extractToolInput(response);
-
-                // tool_use の input は JSON Schema に従うが、
-                // Zod でより厳密にバリデーション（文字列長・配列長など）する
                 const validated = aiOutputSchema.parse(toolInput);
-
-                // nickname → id の変換 & Question[] への変換
                 const questions = this.transformQuestions(validated.questions, participants);
 
                 logger.info(
                     { attempt: attempt + 1, questionCount: questions.length },
-                    "Quiz generation succeeded",
+                    "Quiz generation succeeded (Azure OpenAI)",
                 );
 
                 return questions;
@@ -152,7 +156,7 @@ export class ClaudeQuizGenerator implements QuizGenerator {
                 lastError = error instanceof Error ? error : new Error(String(error));
                 logger.warn(
                     { attempt: attempt + 1, error: lastError.message },
-                    "Quiz generation attempt failed",
+                    "Quiz generation attempt failed (Azure OpenAI)",
                 );
             }
         }
@@ -165,7 +169,6 @@ export class ClaudeQuizGenerator implements QuizGenerator {
     // ----------------------------------------------------------
 
     private buildUserPrompt(participants: ParticipantProfile[], profileFields: ProfileFieldDefinition[], quizConfig: QuizCountConfig): string {
-        /** フィールドID → 日本語ラベルのマッピング（動的生成） */
         const fieldLabels: Record<string, string> = {};
         for (const field of profileFields) {
             fieldLabels[field.id] = field.label;
@@ -173,7 +176,6 @@ export class ClaudeQuizGenerator implements QuizGenerator {
 
         const profileTexts = participants
             .map((p) => {
-                // 空フィールドを省略して Claude へのトークン消費を削減する
                 const fields = Object.entries(p.profile)
                     .filter(([, value]) => value.trim().length > 0)
                     .map(([key, value]) => `- ${fieldLabels[key] ?? key}: ${value}`)
@@ -190,24 +192,26 @@ ${profileTexts}`;
     }
 
     /**
-     * Claude レスポンスから tool_use ブロックの input を抽出する。
-     * tool_choice で強制しているため、必ず tool_use ブロックが含まれるはずだが、
-     * 万一見つからない場合はエラーをスローしてリトライに回す。
+     * OpenAI レスポンスから function call の arguments を抽出する。
      */
-    private extractToolInput(response: Anthropic.Message): unknown {
-        const toolUseBlock = response.content.find(
-            (block): block is Anthropic.ContentBlock & { type: "tool_use" } =>
-                block.type === "tool_use" && block.name === TOOL_NAME,
+    private extractToolInput(response: ChatCompletion): unknown {
+        const choice = response.choices[0];
+        if (!choice) {
+            throw new Error("No choices in Azure OpenAI response");
+        }
+
+        const toolCall = choice.message.tool_calls?.find(
+            (tc) => "function" in tc && tc.function.name === TOOL_NAME,
         );
 
-        if (!toolUseBlock) {
+        if (!toolCall || !("function" in toolCall)) {
             throw new Error(
-                `No tool_use block with name "${TOOL_NAME}" found in Claude response. ` +
-                `stop_reason: ${response.stop_reason}`,
+                `No function call with name "${TOOL_NAME}" found in response. ` +
+                `finish_reason: ${choice.finish_reason}`,
             );
         }
 
-        return toolUseBlock.input;
+        return JSON.parse(toolCall.function.arguments);
     }
 
     /**
