@@ -10,7 +10,9 @@
   ],
   "scripts": {
     "dev": "npx concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:ai": "npx concurrently \"npm run dev:ai:server\" \"npm run dev:client\"",
     "dev:server": "npm run dev --workspace=packages/server",
+    "dev:ai:server": "npm run dev:ai --workspace=packages/server",
     "dev:client": "npm run dev --workspace=packages/client",
     "build": "npm run build --workspace=packages/shared && npm run build --workspace=packages/server && npm run build --workspace=packages/client",
     "build:shared": "npm run build --workspace=packages/shared",
@@ -20,12 +22,14 @@
     "test:server": "npm run test --workspace=packages/server",
     "test:client": "npm run test --workspace=packages/client",
     "lint": "npm run lint --workspaces --if-present",
-    "clean": "npm run clean --workspaces --if-present"
+    "clean": "npm run clean --workspaces --if-present",
+    "e2e:setup": "npx playwright test e2e/setup-3players.ts --headed"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "concurrently": "^9.2.1"
   }
 }
