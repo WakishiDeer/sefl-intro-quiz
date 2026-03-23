@@ -270,7 +270,7 @@ export function RoomPage() {
         <div className={`min-h-screen bg-linear-to-br ${theme.colors.bgGradient} transition-colors duration-500`}>
             {/* 接続断バナー */}
             {!isConnected && (
-                <div className="bg-amber-500 px-4 py-2 text-center text-sm font-medium text-white">
+                <div className={`px-4 py-2 text-center text-sm font-medium ${theme.colors.badgeWarning}`}>
                     接続が切れました。再接続中...
                 </div>
             )}

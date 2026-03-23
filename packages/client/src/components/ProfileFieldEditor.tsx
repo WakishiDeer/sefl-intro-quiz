@@ -16,6 +16,7 @@ import {
 } from "@self-intro-quiz/shared";
 import type { ProfileFieldDefinition } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
+import { useAnimationTheme } from "../animations/useAnimationTheme.js";
 
 interface Props {
   onClose: () => void;
@@ -27,6 +28,7 @@ export function ProfileFieldEditor({ onClose }: Props) {
     () => currentFields.map((f) => ({ ...f })),
   );
   const [error, setError] = useState<string | null>(null);
+  const theme = useAnimationTheme();
 
   const canAdd = fields.length < MAX_PROFILE_FIELDS;
   const canRemove = fields.length > MIN_PROFILE_FIELDS;
@@ -122,11 +124,11 @@ export function ProfileFieldEditor({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-        <h2 className="mb-4 text-lg font-bold text-gray-800">
+      <div className={`mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl ${theme.colors.modalBg} p-6 shadow-xl`}>
+        <h2 className={`mb-4 text-lg font-bold ${theme.colors.textPrimary}`}>
           📝 プロフィール項目を編集
         </h2>
-        <p className="mb-4 text-sm text-gray-500">
+        <p className={`mb-4 text-sm ${theme.colors.textSecondary}`}>
           {MIN_PROFILE_FIELDS}〜{MAX_PROFILE_FIELDS} 個の項目を設定できます（現在 {fields.length} 個）
         </p>
 
@@ -134,7 +136,7 @@ export function ProfileFieldEditor({ onClose }: Props) {
           {fields.map((field, index) => (
             <div
               key={field.id || index}
-              className="flex items-start gap-2 rounded-lg border border-gray-200 p-3"
+              className={`flex items-start gap-2 rounded-lg border ${theme.colors.cardBorder} p-3`}
             >
               {/* 並び替えボタン */}
               <div className="flex flex-col gap-0.5 pt-1">
@@ -142,7 +144,7 @@ export function ProfileFieldEditor({ onClose }: Props) {
                   type="button"
                   onClick={() => handleMoveUp(index)}
                   disabled={index === 0}
-                  className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                  className={`text-xs ${theme.colors.textSecondary} hover:opacity-80 disabled:opacity-30`}
                   aria-label="上に移動"
                 >
                   ▲
@@ -151,7 +153,7 @@ export function ProfileFieldEditor({ onClose }: Props) {
                   type="button"
                   onClick={() => handleMoveDown(index)}
                   disabled={index === fields.length - 1}
-                  className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                  className={`text-xs ${theme.colors.textSecondary} hover:opacity-80 disabled:opacity-30`}
                   aria-label="下に移動"
                 >
                   ▼
@@ -166,7 +168,7 @@ export function ProfileFieldEditor({ onClose }: Props) {
                   onChange={(e) => handleFieldChange(index, "label", e.target.value)}
                   placeholder="項目名（例: 出身地）"
                   maxLength={MAX_PROFILE_FIELD_LABEL_LENGTH}
-                  className="block w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none"
+                  className={`block w-full rounded border px-2 py-1 text-sm focus:outline-none ${theme.colors.inputField} ${theme.colors.inputFocus}`}
                 />
                 <input
                   type="text"
@@ -176,7 +178,7 @@ export function ProfileFieldEditor({ onClose }: Props) {
                   }
                   placeholder="ヒント（例: 例: 東京都）"
                   maxLength={MAX_PROFILE_FIELD_PLACEHOLDER_LENGTH}
-                  className="block w-full rounded border border-gray-200 px-2 py-1 text-xs text-gray-500 focus:border-indigo-400 focus:outline-none"
+                  className={`block w-full rounded border px-2 py-1 text-xs focus:outline-none ${theme.colors.inputField} ${theme.colors.inputFocus}`}
                 />
               </div>
 
@@ -199,7 +201,7 @@ export function ProfileFieldEditor({ onClose }: Props) {
           <button
             type="button"
             onClick={handleAdd}
-            className="mt-3 w-full rounded-lg border-2 border-dashed border-gray-300 py-2 text-sm text-gray-500 transition hover:border-indigo-400 hover:text-indigo-600"
+            className={`mt-3 w-full rounded-lg border-2 border-dashed py-2 text-sm transition ${theme.colors.buttonGhost}`}
           >
             ＋ 項目を追加
           </button>
@@ -214,14 +216,14 @@ export function ProfileFieldEditor({ onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
+            className={`flex-1 rounded-lg border px-4 py-2 text-sm transition ${theme.colors.buttonGhost}`}
           >
             キャンセル
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            className={`flex-1 rounded-lg ${theme.colors.buttonPrimary} px-4 py-2 text-sm font-semibold text-white transition ${theme.colors.buttonPrimaryHover}`}
           >
             保存する
           </button>

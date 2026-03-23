@@ -8,6 +8,7 @@
 import { motion } from "framer-motion";
 import type { ParticipantAnswerResult } from "@self-intro-quiz/shared";
 import { useAnimationTheme } from "../animations/useAnimationTheme.js";
+import type { ThemeColors } from "../animations/types.js";
 
 interface Props {
     results: ParticipantAnswerResult[];
@@ -36,7 +37,7 @@ export function AnswerResultList({ results, compact = false }: Props) {
                     key={r.nickname}
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${getStyle(r)}`}
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${getStyle(r, theme.colors)}`}
                 >
                     <span>{getIcon(r)}</span>
                     <span>{r.nickname}</span>
@@ -53,9 +54,9 @@ function getIcon(r: ParticipantAnswerResult): string {
     return "❌";
 }
 
-function getStyle(r: ParticipantAnswerResult): string {
-    if (r.isIneligible) return "bg-gray-100 text-gray-400";
-    if (r.isTimeout) return "bg-yellow-100 text-yellow-700";
-    if (r.isCorrect) return "bg-green-100 text-green-700";
-    return "bg-red-100 text-red-700";
+function getStyle(r: ParticipantAnswerResult, colors: ThemeColors): string {
+    if (r.isIneligible) return colors.badgeMuted;
+    if (r.isTimeout) return colors.badgeWarning;
+    if (r.isCorrect) return colors.badgeSuccess;
+    return colors.badgeError;
 }

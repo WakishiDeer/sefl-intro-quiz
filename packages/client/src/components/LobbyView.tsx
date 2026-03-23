@@ -109,10 +109,10 @@ export function LobbyView() {
           {phase === "lobby" ? (
             <ProfileForm />
           ) : (
-            <div className="text-center text-gray-500 py-8">
+            <div className={`text-center ${theme.colors.textSecondary} py-8`}>
               {isGenerating && (
                 <div>
-                  <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                  <div className={`mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 ${theme.colors.spinner}`} />
                   <p>クイズを生成中...</p>
                 </div>
               )}
@@ -132,7 +132,7 @@ export function LobbyView() {
                   {/* プロフィール項目編集 */}
                   <button
                     onClick={() => setShowFieldEditor(true)}
-                    className="w-full rounded-lg border border-indigo-300 px-4 py-2.5 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50"
+                    className={`w-full rounded-lg border px-4 py-2.5 text-sm font-medium transition ${theme.colors.buttonGhost}`}
                   >
                     📝 プロフィール項目を編集
                   </button>
@@ -140,7 +140,7 @@ export function LobbyView() {
                   {/* AI リクエスト */}
                   <button
                     onClick={handleStartAIRequest}
-                    className="w-full rounded-lg border border-amber-300 px-4 py-2.5 text-sm font-medium text-amber-600 transition hover:bg-amber-50"
+                    className={`w-full rounded-lg border px-4 py-2.5 text-sm font-medium transition ${theme.colors.buttonGhost}`}
                   >
                     🤖 みんなで AI リクエスト
                   </button>
@@ -185,20 +185,22 @@ export function LobbyView() {
               )}
 
               {generateError && (
-                <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                <div className={`rounded-lg ${theme.colors.badgeError} p-3 text-sm`}>
                   <p>{generateError}</p>
                   <button
                     onClick={handleGenerate}
-                    className="mt-1 text-red-700 underline hover:no-underline"
+                    className="mt-1 underline hover:no-underline"
                   >
                     再試行
                   </button>
                 </div>
-              )}
+              )
+
+              }
 
               <button
                 onClick={handleCloseRoom}
-                className="w-full rounded-lg border border-red-300 px-4 py-2 text-sm text-red-600 transition hover:bg-red-50"
+                className={`w-full rounded-lg border px-4 py-2 text-sm transition ${theme.colors.buttonDanger}`}
               >
                 ルームを閉じる
               </button>
@@ -209,7 +211,7 @@ export function LobbyView() {
           <div className={isHost ? "mt-2" : "mt-4"}>
             <button
               onClick={handleLeaveRoom}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
+              className={`w-full rounded-lg border px-4 py-2 text-sm transition ${theme.colors.buttonGhost}`}
             >
               🚪 ルームから退出する
             </button>

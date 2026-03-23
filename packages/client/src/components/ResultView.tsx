@@ -112,7 +112,7 @@ export function ResultView() {
           </button>
           <button
             onClick={handleCloseRoom}
-            className="rounded-lg bg-gray-600 px-6 py-3 font-semibold text-white transition hover:bg-gray-700"
+            className={`rounded-lg border px-6 py-3 font-semibold transition ${theme.colors.buttonDanger}`}
           >
             ルームを閉じる
           </button>

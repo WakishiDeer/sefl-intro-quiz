@@ -35,37 +35,37 @@ export function ChoiceButton({ label, index, selected, correct, disabled, onClic
   const unselectedWrongClass = correct === false && !selected ? "choice-wrong-unselected" : "";
 
   // --- 背景・ボーダー ---
-  let bgClass = "bg-white hover:bg-indigo-50 border-gray-200";
+  let bgClass = `${theme.colors.surfaceMuted} ${theme.colors.cardBorder} hover:opacity-80`;
 
   if (correct === true) {
     bgClass = selected
-      ? "bg-green-100 border-green-500 ring-2 ring-green-400 shadow-md shadow-green-200"
-      : "bg-green-50 border-green-400 ring-2 ring-green-300";
+      ? `${theme.colors.badgeSuccess} ring-2 ring-green-400 shadow-md`
+      : `${theme.colors.badgeSuccess} ring-2 ring-green-400/50`;
   } else if (correct === false && selected) {
-    bgClass = "bg-red-50 border-red-300";
+    bgClass = theme.colors.badgeError;
   } else if (correct === false) {
-    bgClass = "bg-gray-50 border-gray-200";
+    bgClass = `${theme.colors.surfaceMuted} ${theme.colors.cardBorder}`;
   } else if (selected) {
-    bgClass = "bg-indigo-100 border-indigo-400 ring-2 ring-indigo-400";
+    bgClass = `${theme.colors.buttonPrimary} text-white ring-2 ring-offset-1`;
   }
 
   if (yesNo) {
     const emoji = index === 0 ? "⭕" : "❌";
-    const defaultTint = index === 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200";
+    const defaultTint = index === 0 ? `${theme.colors.badgeSuccess} border-green-400/40` : `${theme.colors.badgeError} border-red-400/40`;
 
     let yesNoBg = defaultTint;
     if (correct === true) {
       yesNoBg = selected
-        ? "bg-green-100 border-green-500 ring-2 ring-green-400 shadow-md shadow-green-200"
-        : "bg-green-50 border-green-400 ring-2 ring-green-300";
+        ? `${theme.colors.badgeSuccess} ring-2 ring-green-400 shadow-md`
+        : `${theme.colors.badgeSuccess} ring-2 ring-green-400/50`;
     } else if (correct === false && selected) {
-      yesNoBg = "bg-red-100 border-red-400";
+      yesNoBg = `${theme.colors.badgeError} ring-2 ring-red-400`;
     } else if (correct === false) {
-      yesNoBg = "bg-gray-100 border-gray-200 opacity-50";
+      yesNoBg = `${theme.colors.badgeMuted} opacity-50`;
     } else if (selected) {
       yesNoBg = index === 0
-        ? "bg-green-100 border-green-400 ring-2 ring-green-400"
-        : "bg-red-100 border-red-400 ring-2 ring-red-400";
+        ? `${theme.colors.badgeSuccess} ring-2 ring-green-400`
+        : `${theme.colors.badgeError} ring-2 ring-red-400`;
     }
 
     const badge =
@@ -77,14 +77,12 @@ export function ChoiceButton({ label, index, selected, correct, disabled, onClic
 
     const labelColor =
       correct === true
-        ? "text-green-700"
+        ? ""
         : correct === false && selected
-          ? "text-red-600"
+          ? ""
           : correct === false
-            ? "text-gray-400"
-            : index === 0
-              ? "text-green-700"
-              : "text-red-700";
+            ? theme.colors.textSecondary
+            : theme.colors.textPrimary;
 
     return (
       <motion.button
@@ -133,12 +131,12 @@ export function ChoiceButton({ label, index, selected, correct, disabled, onClic
             ? "bg-green-500"
             : correct === false && selected
               ? "bg-red-400"
-              : "bg-indigo-600"
+              : theme.colors.choiceIndexBadge
         }`}
       >
         {correct === true ? "✓" : correct === false && selected ? "✗" : LABELS[index]}
       </span>
-      <span className="text-lg font-medium text-gray-800">{label}</span>
+      <span className={`text-lg font-medium ${theme.colors.textPrimary}`}>{label}</span>
       {/* 正解時のエフェクト */}
       {correct === true && selected && theme.effects.onCorrect && (
         <>{theme.effects.onCorrect()}</>

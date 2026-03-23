@@ -67,7 +67,7 @@ export function QuizView() {
   if (!currentQuestion) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-500">問題を読み込み中...</p>
+        <p className={theme.colors.textSecondary}>問題を読み込み中...</p>
       </div>
     );
   }
@@ -80,12 +80,12 @@ export function QuizView() {
         <div className="flex items-center justify-between">
           <Timer timerEndsAt={timerEndsAt} />
           {phase === "playing" && (
-            <div className="text-sm text-gray-500">
+            <div className={`text-sm ${theme.colors.textSecondary}`}>
               回答: {answeredCount} / {totalParticipants}
             </div>
           )}
           {phase === "interviewing" && (
-            <div className="text-sm text-amber-600 font-medium">
+            <div className={`text-sm font-medium ${theme.colors.textAccent}`}>
               スピーチ中
             </div>
           )}
@@ -101,7 +101,7 @@ export function QuizView() {
 
         {/* 途中参加者への案内 */}
         {joinedAtQuestion > currentQuestion.index && phase === "playing" && (
-          <div className="rounded-lg bg-amber-50 p-3 text-center text-sm text-amber-700">
+          <div className={`rounded-lg ${theme.colors.badgeWarning} p-3 text-center text-sm`}>
             この問題は途中参加のため回答できません。次の問題からご参加ください。
           </div>
         )}
@@ -111,7 +111,7 @@ export function QuizView() {
           /* ⭕❌問題: 「どっちだ！？」ヘッダ + 横並びボタン */
           <div className="space-y-3">
             <div className="text-center">
-              <span className="inline-block rounded-full bg-amber-100 px-4 py-1 text-sm font-bold text-amber-700">
+              <span className={`inline-block rounded-full px-4 py-1 text-sm font-bold ${theme.colors.badgeWarning}`}>
                 ⭕ or ❌ どっちだ！？
               </span>
             </div>
@@ -162,7 +162,7 @@ export function QuizView() {
 
         {/* 回答済みメッセージ */}
         {myAnswer !== null && phase === "playing" && (
-          <div className="text-center text-sm text-indigo-600">
+          <div className={`text-center text-sm ${theme.colors.textAccent}`}>
             回答済み！他の回答者を待っています...
           </div>
         )}
@@ -189,13 +189,13 @@ export function QuizView() {
                 disabled={hasVotedCurious}
                 className={`rounded-full px-6 py-2.5 text-base font-semibold transition ${
                   hasVotedCurious
-                    ? "bg-amber-100 text-amber-600 cursor-default"
+                    ? `${theme.colors.badgeWarning} cursor-default`
                     : `${theme.colors.buttonAccent} text-white ${theme.colors.buttonAccentHover} active:scale-95`
                 }`}
               >
                 {hasVotedCurious ? "✓ 気になる！" : "気になる👀"}
               </button>
-              <p className="mt-1.5 text-xs text-gray-400">
+              <p className={`mt-1.5 text-xs ${theme.colors.textSecondary}`}>
                 もっと知りたいと思ったらタップ！
               </p>
             </div>
@@ -219,19 +219,8 @@ export function QuizView() {
         {/* スピーチタイム */}
         {phase === "interviewing" && interviewSpeech && (
           <div className="space-y-4">
-            <div className="rounded-xl border-2 border-amber-400 bg-amber-50 p-5">
-              <div className="mb-3 text-center">
-                <span className="inline-block rounded-full bg-amber-400 px-4 py-1.5 text-sm font-bold text-white">
-                  🎤 スピーチタイム
-                </span>
-              </div>
-              <h3 className="text-center text-xl font-bold text-amber-900">
-                {interviewSpeech.subjectNickname} さん、1分間どうぞ！
-              </h3>
-              <p className="mt-2 text-center text-sm text-amber-700">
-                みんなが気になっています！自由にお話しください
-              </p>
-            </div>
+            {/* スポットライト演出（名前・バッジ・デコ込み） */}
+            {theme.effects.onInterview?.(interviewSpeech.subjectNickname)}
 
             {revealedAnswer && (
               <>
@@ -246,7 +235,7 @@ export function QuizView() {
             {isHost && (
               <button
                 onClick={handleNext}
-                className={`w-full rounded-lg ${theme.colors.buttonPrimary} px-4 py-3 text-lg font-semibold text-white transition ${theme.colors.buttonPrimaryHover}`}
+                className={`relative z-10 w-full rounded-lg ${theme.colors.buttonPrimary} px-4 py-3 text-lg font-semibold text-white shadow-lg transition ${theme.colors.buttonPrimaryHover}`}
               >
                 {currentQuestion.index < totalQuestions - 1
                   ? "次の問題へ →"

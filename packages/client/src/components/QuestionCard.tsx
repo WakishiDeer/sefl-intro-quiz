@@ -25,19 +25,19 @@ export function QuestionCard({ index, text, totalQuestions, yesNo }: Props) {
       variants={theme.variants.questionEntry}
       initial="initial"
       animate="animate"
-      className={`rounded-xl p-6 shadow-lg ${yesNo ? "bg-amber-50 border-2 border-amber-200" : "bg-white"}`}
+      className={`rounded-xl p-6 shadow-lg ${yesNo ? `${theme.colors.badgeWarning} border-2` : theme.colors.cardBg}`}
     >
       <div className="mb-2 flex items-center gap-2">
-        <span className="text-sm font-medium text-indigo-500">
+        <span className={`text-sm font-medium ${theme.colors.textAccent}`}>
           Q{index + 1} / {totalQuestions}
         </span>
         {yesNo && (
-          <span className="rounded bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-800">
+          <span className={`rounded px-2 py-0.5 text-xs font-bold ${theme.colors.badgeWarning}`}>
             ⭕❌
           </span>
         )}
       </div>
-      <h2 className="text-xl font-bold text-gray-900">{text}</h2>
+      <h2 className={`text-xl font-bold ${theme.colors.textPrimary}`}>{text}</h2>
     </motion.div>
   );
 }

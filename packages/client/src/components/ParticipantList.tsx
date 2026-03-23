@@ -32,7 +32,7 @@ export function ParticipantList({
 
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+      <h3 className={`text-sm font-semibold ${theme.colors.textSecondary} uppercase tracking-wide`}>
         参加者 ({participants.length})
       </h3>
       <AnimatePresence>
@@ -50,28 +50,29 @@ export function ParticipantList({
                 layout
                 className={[
                 "flex items-center justify-between rounded-lg px-3 py-2 text-sm",
+                theme.colors.textPrimary,
                 p.isConnected ? "" : "opacity-60",
                 isMe
-                  ? "bg-indigo-50 ring-2 ring-indigo-400"
+                  ? `${theme.colors.cardBg} ring-2 ring-offset-0 ${theme.colors.cardBorder}`
                   : p.isConnected
-                    ? "bg-white"
-                    : "bg-gray-100",
+                    ? theme.colors.surfaceMuted
+                    : `${theme.colors.surfaceMuted} opacity-60`,
               ].join(" ")}
             >
               <div className="flex items-center gap-2 min-w-0">
                 <span
                   className={`inline-block h-2 w-2 shrink-0 rounded-full ${
-                    p.isConnected ? "bg-green-400" : "bg-gray-400"
+                    p.isConnected ? theme.colors.participantOnline : theme.colors.participantOffline
                   }`}
                 />
                 <span className="font-medium truncate">
                   {p.nickname}
                   {isMe && (
-                    <span className="ml-1 text-xs text-indigo-500">(あなた)</span>
+                    <span className={`ml-1 text-xs ${theme.colors.textAccent}`}>(あなた)</span>
                   )}
                 </span>
                 {p.isHost && (
-                  <span className="shrink-0 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-700">
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${theme.colors.badgeWarning}`}>
                     Host
                   </span>
                 )}
@@ -82,16 +83,16 @@ export function ParticipantList({
                 {mode === "lobby" ? (
                   // ロビー: プロフィール入力状態
                   p.hasProfile ? (
-                    <span className="text-green-600">✓</span>
+                    <span className={theme.colors.statusOk}>✓</span>
                   ) : (
-                    <span className="text-gray-400 text-xs">未入力</span>
+                    <span className={`${theme.colors.textSecondary} text-xs`}>未入力</span>
                   )
                 ) : (
                   // クイズ中: 回答状態
                   hasAnswered ? (
-                    <span className="text-green-600" title="回答済み">✓</span>
+                    <span className={theme.colors.statusOk} title="回答済み">✓</span>
                   ) : (
-                    <span className="text-gray-400" title="回答中">⏳</span>
+                    <span className={theme.colors.textSecondary} title="回答中">⏳</span>
                   )
                 )}
               </div>

@@ -43,20 +43,20 @@ export function ThemePicker() {
                 isActive
                   ? `${themePreview.colors.cardBorder} bg-gradient-to-br ${themePreview.colors.bgGradient} ring-2 ring-offset-1`
                   : isHost
-                    ? `border-gray-200 bg-white hover:bg-gradient-to-br hover:${themePreview.colors.bgGradient} hover:border-gray-300`
-                    : "border-gray-200 bg-white cursor-default",
+                    ? `${theme.colors.cardBorder} ${theme.colors.surfaceMuted} hover:opacity-80`
+                    : `${theme.colors.cardBorder} ${theme.colors.surfaceMuted} cursor-default`,
                 !isHost && "opacity-70",
               ].join(" ")}
             >
               <span className="text-2xl">{meta.icon}</span>
-              <span className={`text-xs font-semibold ${isActive ? themePreview.colors.textPrimary : "text-gray-800"}`}>{meta.label}</span>
-              <span className={`text-[10px] leading-tight ${isActive ? themePreview.colors.textSecondary : "text-gray-500"}`}>{meta.description}</span>
+              <span className={`text-xs font-semibold ${isActive ? themePreview.colors.textPrimary : theme.colors.textPrimary}`}>{meta.label}</span>
+              <span className={`text-[10px] leading-tight ${isActive ? themePreview.colors.textSecondary : theme.colors.textSecondary}`}>{meta.description}</span>
             </button>
           );
         })}
       </div>
       {!isHost && (
-        <p className="text-xs text-gray-400">テーマの変更はホストのみ可能です</p>
+        <p className={`text-xs ${theme.colors.textSecondary}`}>テーマの変更はホストのみ可能です</p>
       )}
     </div>
   );

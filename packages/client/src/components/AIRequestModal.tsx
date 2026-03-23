@@ -16,6 +16,7 @@ import {
 } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { Timer } from "./Timer.js";
+import { useAnimationTheme } from "../animations/useAnimationTheme.js";
 
 /**
  * Fisher-Yates シャッフルで配列からランダムに count 個を選ぶ。
@@ -43,6 +44,7 @@ export function AIRequestModal({ onClose }: Props) {
   const expiresAt = useRoomStore((s) => s.aiRequestExpiresAt);
   const submittedCount = useRoomStore((s) => s.aiRequestSubmittedCount);
   const totalParticipants = useRoomStore((s) => s.aiRequestTotalParticipants);
+  const theme = useAnimationTheme();
 
   const [selectedPresets, setSelectedPresets] = useState<string[]>([]);
   const [freeText, setFreeText] = useState("");
@@ -92,19 +94,19 @@ export function AIRequestModal({ onClose }: Props) {
   if (aiState === "generating") {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-xl">
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
-          <h2 className="text-lg font-bold text-gray-800">
+        <div className={`mx-4 w-full max-w-md rounded-2xl ${theme.colors.modalBg} p-8 text-center shadow-xl`}>
+          <div className={`mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 ${theme.colors.spinner}`} />
+          <h2 className={`text-lg font-bold ${theme.colors.textPrimary}`}>
             AI がプロフィール項目を考え中...
           </h2>
-          <p className="mt-2 text-sm text-gray-500">
+          <p className={`mt-2 text-sm ${theme.colors.textSecondary}`}>
             みんなのリクエストをもとに最適な項目を提案します
           </p>
           {isHost ? (
             <button
               type="button"
               onClick={handleCancel}
-              className="mt-5 w-full rounded-lg border border-red-300 px-4 py-2 text-sm text-red-600 transition hover:bg-red-50"
+              className={`mt-5 w-full rounded-lg border px-4 py-2 text-sm transition ${theme.colors.buttonDanger}`}
             >
               ❌ AI リクエストをキャンセル
             </button>
@@ -112,7 +114,7 @@ export function AIRequestModal({ onClose }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="mt-5 w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
+              className={`mt-5 w-full rounded-lg border px-4 py-2 text-sm transition ${theme.colors.buttonGhost}`}
             >
               閉じる（結果が届いたら再表示されます）
             </button>
@@ -125,34 +127,34 @@ export function AIRequestModal({ onClose }: Props) {
   // 収集中
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+      <div className={`mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl ${theme.colors.modalBg} p-6 shadow-xl`}>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-800">
+          <h2 className={`text-lg font-bold ${theme.colors.textPrimary}`}>
             🤖 みんなで AI リクエスト
           </h2>
           {expiresAt && (
-            <div className="text-sm text-gray-500">
+            <div className={`text-sm ${theme.colors.textSecondary}`}>
               残り <Timer timerEndsAt={expiresAt} />
             </div>
           )}
         </div>
 
-        <p className="mb-4 text-sm text-gray-600">
+        <p className={`mb-4 text-sm ${theme.colors.textSecondary}`}>
           どんなプロフィール項目がいいか、リクエストを送ろう！
         </p>
 
         {/* 収集状況 */}
-        <div className="mb-4 rounded-lg bg-indigo-50 px-4 py-2 text-sm text-indigo-700">
+        <div className={`mb-4 rounded-lg px-4 py-2 text-sm ${theme.colors.progressIndicator}`}>
           📊 {submittedCount} / {totalParticipants} 人がリクエスト済み
         </div>
 
         {submitted ? (
           /* 送信済み */
-          <div className="rounded-xl bg-green-50 p-6 text-center">
-            <p className="text-lg font-medium text-green-700">
+          <div className={`rounded-xl ${theme.colors.badgeSuccess} p-6 text-center`}>
+            <p className="text-lg font-medium">
               ✅ リクエストを送信しました！
             </p>
-            <p className="mt-1 text-sm text-green-600">
+            <p className="mt-1 text-sm">
               他のメンバーのリクエストを待っています...
             </p>
           </div>
@@ -162,13 +164,13 @@ export function AIRequestModal({ onClose }: Props) {
             {/* プリセット選択 */}
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-700">
+                <p className={`text-sm font-medium ${theme.colors.labelText}`}>
                   プリセットから選択（複数可）
                 </p>
                 <button
                   type="button"
                   onClick={handleShuffle}
-                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-indigo-600 transition hover:bg-indigo-50"
+                  className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition ${theme.colors.linkText} hover:opacity-80`}
                   title="別の候補を表示"
                 >
                   🔀 別の候補
@@ -182,8 +184,8 @@ export function AIRequestModal({ onClose }: Props) {
                     onClick={() => togglePreset(preset)}
                     className={`rounded-full px-3 py-1.5 text-xs transition ${
                       selectedPresets.includes(preset)
-                        ? "bg-indigo-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        ? theme.colors.chipSelected
+                        : theme.colors.chipDefault
                     }`}
                   >
                     {preset}
@@ -192,7 +194,7 @@ export function AIRequestModal({ onClose }: Props) {
               </div>
               {/* 非表示だが選択済みのプリセットがあれば表示 */}
               {selectedPresets.filter((p) => !displayedPresets.includes(p)).length > 0 && (
-                <p className="mt-1.5 text-xs text-indigo-500">
+                <p className={`mt-1.5 text-xs ${theme.colors.textAccent}`}>
                   + 前の候補から {selectedPresets.filter((p) => !displayedPresets.includes(p)).length} 件選択済み
                 </p>
               )}
@@ -200,7 +202,7 @@ export function AIRequestModal({ onClose }: Props) {
 
             {/* 自由テキスト */}
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+              <label className={`mb-1 block text-sm font-medium ${theme.colors.labelText}`}>
                 自由にリクエスト
               </label>
               <textarea
@@ -209,9 +211,9 @@ export function AIRequestModal({ onClose }: Props) {
                 placeholder="例: ペットについての項目がほしい！"
                 maxLength={AI_REQUEST_MAX_FREE_TEXT}
                 rows={3}
-                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+                className={`block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none ${theme.colors.inputField} ${theme.colors.inputFocus}`}
               />
-              <p className="mt-1 text-right text-xs text-gray-400">
+              <p className={`mt-1 text-right text-xs ${theme.colors.textSecondary}`}>
                 {freeText.length} / {AI_REQUEST_MAX_FREE_TEXT}
               </p>
             </div>
@@ -220,7 +222,7 @@ export function AIRequestModal({ onClose }: Props) {
               type="button"
               onClick={handleSubmit}
               disabled={selectedPresets.length === 0 && freeText.trim() === ""}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+              className={`w-full rounded-lg ${theme.colors.buttonPrimary} px-4 py-2.5 font-semibold text-white transition ${theme.colors.buttonPrimaryHover} disabled:opacity-50`}
             >
               リクエストを送信
             </button>
@@ -229,21 +231,21 @@ export function AIRequestModal({ onClose }: Props) {
 
         {/* ホスト用コントロール */}
         {isHost && (
-          <div className="mt-5 border-t border-gray-200 pt-4">
-            <p className="mb-2 text-xs text-gray-500">
+          <div className={`mt-5 border-t ${theme.colors.cardBorder} pt-4`}>
+            <p className={`mb-2 text-xs ${theme.colors.textSecondary}`}>
               ホスト操作: リクエスト受付を締め切って AI に項目を提案してもらいます
             </p>
             <button
               type="button"
               onClick={handleFinalize}
-              className="w-full rounded-lg bg-amber-500 px-4 py-2.5 font-semibold text-white transition hover:bg-amber-600"
+              className={`w-full rounded-lg ${theme.colors.buttonAccent} px-4 py-2.5 font-semibold text-white transition ${theme.colors.buttonAccentHover}`}
             >
               🚀 受付を締め切って AI 生成開始
             </button>
             <button
               type="button"
               onClick={handleCancel}
-              className="mt-2 w-full rounded-lg border border-red-300 px-4 py-2 text-sm text-red-600 transition hover:bg-red-50"
+              className={`mt-2 w-full rounded-lg border px-4 py-2 text-sm transition ${theme.colors.buttonDanger}`}
             >
               ❌ AI リクエストをキャンセル
             </button>
@@ -262,7 +264,7 @@ export function AIRequestModal({ onClose }: Props) {
               }
               onClose();
             }}
-            className="mt-3 w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
+            className={`mt-3 w-full rounded-lg border px-4 py-2 text-sm transition ${theme.colors.buttonGhost}`}
           >
             閉じる
           </button>

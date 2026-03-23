@@ -44,12 +44,12 @@ export function QuestionResultsList({ questionResults }: Props) {
                                 className={`w-full rounded-lg px-4 py-3 text-left transition ${
                                     isOpen
                                         ? `${theme.colors.buttonPrimary} text-white`
-                                        : `bg-gray-50 hover:bg-gray-100 ${theme.colors.textPrimary}`
+                                        : `${theme.colors.explanationBg} ${theme.colors.textPrimary}`
                                 }`}
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2 min-w-0">
-                                        <span className={`text-xs font-bold shrink-0 ${isOpen ? "text-white/80" : "text-indigo-500"}`}>
+                                        <span className={`text-xs font-bold shrink-0 ${isOpen ? "text-white/80" : theme.colors.textAccent}`}>
                                             Q{qr.questionIndex + 1}
                                         </span>
                                         <span className="truncate text-sm">

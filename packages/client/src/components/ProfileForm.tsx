@@ -10,11 +10,13 @@ import { socket } from "../lib/socket.js";
 import { C2S_EVENTS, S2C_EVENTS, createProfileSchema, MAX_PROFILE_FIELD_LENGTH } from "@self-intro-quiz/shared";
 import type { RoomErrorPayload, ProfileFieldDefinition } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
+import { useAnimationTheme } from "../animations/useAnimationTheme.js";
 
 export function ProfileForm() {
   const profileFields = useRoomStore((s) => s.profileFields);
   const profileInvalidated = useRoomStore((s) => s.profileInvalidated);
   const myProfile = useRoomStore((s) => s.myProfile);
+  const theme = useAnimationTheme();
 
   const [form, setForm] = useState<Record<string, string>>(() =>
     buildInitialForm(profileFields, myProfile),
@@ -68,11 +70,11 @@ export function ProfileForm() {
 
   if (submitted) {
     return (
-      <div className="rounded-xl bg-green-50 p-6 text-center">
-        <p className="text-lg font-medium text-green-700">✅ プロフィールを送信しました！</p>
+      <div className={`rounded-xl ${theme.colors.badgeSuccess} p-6 text-center`}>
+        <p className="text-lg font-medium">✅ プロフィールを送信しました！</p>
         <button
           onClick={() => setSubmitted(false)}
-          className="mt-2 text-sm text-green-600 underline hover:no-underline"
+          className="mt-2 text-sm underline hover:no-underline"
         >
           編集する
         </button>
@@ -84,7 +86,7 @@ export function ProfileForm() {
     <form onSubmit={handleSubmit} className="space-y-3">
       {profileFields.map((field) => (
         <div key={field.id}>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className={`block text-sm font-medium ${theme.colors.labelText}`}>
             {field.label}
           </label>
           <input
@@ -93,14 +95,14 @@ export function ProfileForm() {
             onChange={(e) => handleChange(field.id, e.target.value)}
             placeholder={field.placeholder}
             maxLength={MAX_PROFILE_FIELD_LENGTH}
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+            className={`mt-1 block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none ${theme.colors.inputField} ${theme.colors.inputFocus}`}
           />
         </div>
       ))}
       {error && <p className="text-sm text-red-500">{error}</p>}
       <button
         type="submit"
-        className="w-full rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white transition hover:bg-indigo-700"
+        className={`w-full rounded-lg px-4 py-2 font-semibold text-white transition ${theme.colors.buttonPrimary} ${theme.colors.buttonPrimaryHover}`}
       >
         プロフィールを送信
       </button>

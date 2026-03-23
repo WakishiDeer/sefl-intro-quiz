@@ -16,6 +16,7 @@ import {
 } from "@self-intro-quiz/shared";
 import type { ProfileFieldDefinition } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
+import { useAnimationTheme } from "../animations/useAnimationTheme.js";
 
 interface Props {
   onClose: () => void;
@@ -28,6 +29,7 @@ interface FieldWithToggle extends ProfileFieldDefinition {
 export function AIRequestResultPanel({ onClose }: Props) {
   const suggestedFields = useRoomStore((s) => s.aiRequestSuggestedFields);
   const resetAIRequest = useRoomStore((s) => s.resetAIRequest);
+  const theme = useAnimationTheme();
 
   const [fields, setFields] = useState<FieldWithToggle[]>(() =>
     (suggestedFields ?? []).map((f) => ({ ...f, enabled: true })),
@@ -98,12 +100,12 @@ export function AIRequestResultPanel({ onClose }: Props) {
   if (!suggestedFields || suggestedFields.length === 0) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-xl">
-          <p className="text-gray-600">AI からの提案がありません</p>
+        <div className={`mx-4 w-full max-w-md rounded-2xl ${theme.colors.modalBg} p-8 text-center shadow-xl`}>
+          <p className={theme.colors.textSecondary}>AI からの提案がありません</p>
           <button
             type="button"
             onClick={handleDiscard}
-            className="mt-4 rounded-lg border border-gray-300 px-6 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            className={`mt-4 rounded-lg border px-6 py-2 text-sm transition ${theme.colors.buttonGhost}`}
           >
             閉じる
           </button>
@@ -114,11 +116,11 @@ export function AIRequestResultPanel({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-        <h2 className="mb-2 text-lg font-bold text-gray-800">
+      <div className={`mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl ${theme.colors.modalBg} p-6 shadow-xl`}>
+        <h2 className={`mb-2 text-lg font-bold ${theme.colors.textPrimary}`}>
           🤖 AI が提案したプロフィール項目
         </h2>
-        <p className="mb-4 text-sm text-gray-500">
+        <p className={`mb-4 text-sm ${theme.colors.textSecondary}`}>
           使いたい項目を選んで、必要に応じて編集してください（{enabledCount} 個選択中）
         </p>
 
@@ -128,8 +130,8 @@ export function AIRequestResultPanel({ onClose }: Props) {
               key={field.id}
               className={`flex items-start gap-3 rounded-lg border p-3 transition ${
                 field.enabled
-                  ? "border-indigo-200 bg-indigo-50/50"
-                  : "border-gray-200 bg-gray-50 opacity-60"
+                  ? `${theme.colors.cardBorder} ${theme.colors.explanationBg}`
+                  : `${theme.colors.surfaceMuted} opacity-60`
               }`}
             >
               {/* チェックボックス */}
@@ -139,7 +141,7 @@ export function AIRequestResultPanel({ onClose }: Props) {
                 onChange={() => toggleField(index)}
                 aria-label={`${field.label} を有効にする`}
                 title={`${field.label} を有効にする`}
-                className="mt-1.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                className={`mt-1.5 h-4 w-4 rounded ${theme.colors.inputField}`}
               />
 
               {/* 編集可能なフィールド */}
@@ -152,7 +154,7 @@ export function AIRequestResultPanel({ onClose }: Props) {
                   maxLength={MAX_PROFILE_FIELD_LABEL_LENGTH}
                   aria-label="項目ラベル"
                   title="項目ラベル"
-                  className="block w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none disabled:bg-gray-100"
+                  className={`block w-full rounded border px-2 py-1 text-sm focus:outline-none disabled:opacity-50 ${theme.colors.inputField} ${theme.colors.inputFocus}`}
                 />
                 <input
                   type="text"
@@ -164,7 +166,7 @@ export function AIRequestResultPanel({ onClose }: Props) {
                   maxLength={MAX_PROFILE_FIELD_PLACEHOLDER_LENGTH}
                   aria-label="プレースホルダーテキスト"
                   title="プレースホルダーテキスト"
-                  className="block w-full rounded border border-gray-200 px-2 py-1 text-xs text-gray-500 focus:border-indigo-400 focus:outline-none disabled:bg-gray-100"
+                  className={`block w-full rounded border px-2 py-1 text-xs focus:outline-none disabled:opacity-50 ${theme.colors.inputField} ${theme.colors.inputFocus}`}
                 />
               </div>
             </div>
@@ -177,14 +179,14 @@ export function AIRequestResultPanel({ onClose }: Props) {
           <button
             type="button"
             onClick={handleDiscard}
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
+            className={`flex-1 rounded-lg border px-4 py-2 text-sm transition ${theme.colors.buttonGhost}`}
           >
             破棄する
           </button>
           <button
             type="button"
             onClick={handleAdopt}
-            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            className={`flex-1 rounded-lg ${theme.colors.buttonPrimary} px-4 py-2 text-sm font-semibold text-white transition ${theme.colors.buttonPrimaryHover}`}
           >
             採用する（{enabledCount} 個）
           </button>
