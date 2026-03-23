@@ -41,6 +41,79 @@ export interface ThemeColors {
     explanationText: string;
     /** 結果画面ハイライト背景グラデーション (e.g. "from-indigo-50 to-purple-50") */
     highlightGradient: string;
+
+    // --- フォーム入力系プリセット ---
+
+    /** フォーム入力フィールド (背景 + ボーダー + テキスト + placeholder) */
+    inputField: string;
+    /** フォーム入力フォーカス時 (ring + border) */
+    inputFocus: string;
+    /** フォームラベル色 */
+    labelText: string;
+
+    // --- サーフェス（控えめな背景） ---
+
+    /** 控えめな背景 (e.g. "bg-gray-50") — 非アクティブ状態、淡い区別用 */
+    surfaceMuted: string;
+
+    // --- ステータスバッジ ---
+
+    /** 成功バッジ (背景 + テキスト) */
+    badgeSuccess: string;
+    /** エラーバッジ (背景 + テキスト) */
+    badgeError: string;
+    /** 警告バッジ (背景 + テキスト) */
+    badgeWarning: string;
+    /** 無効・不参加バッジ (背景 + テキスト) */
+    badgeMuted: string;
+
+    // --- 追加ボタン ---
+
+    /** デンジャーボタン (背景 + テキスト + ボーダー) */
+    buttonDanger: string;
+    /** ゴーストボタン (ボーダー + テキスト + ホバー) */
+    buttonGhost: string;
+
+    // --- モーダル ---
+
+    /** モーダル / ダイアログ背景 (e.g. "bg-white") */
+    modalBg: string;
+
+    // --- 選択肢バッジ ---
+
+    /** 選択肢インデックスバッジ (A/B/C/D 丸) 背景 (e.g. "bg-indigo-600") */
+    choiceIndexBadge: string;
+
+    // --- 参加者ステータス ---
+
+    /** オンラインインジケータ色 (e.g. "bg-green-400") */
+    participantOnline: string;
+    /** オフラインインジケータ色 (e.g. "bg-gray-400") */
+    participantOffline: string;
+    /** 成功チェックマーク色 (e.g. "text-green-500") */
+    statusOk: string;
+
+    // --- チップ / タグ ---
+
+    /** 選択済みチップ (背景 + テキスト) (e.g. "bg-indigo-600 text-white") */
+    chipSelected: string;
+    /** 未選択チップ (背景 + テキスト + ホバー) (e.g. "bg-gray-100 text-gray-700 hover:bg-gray-200") */
+    chipDefault: string;
+
+    // --- スピナー ---
+
+    /** ローディングスピナー (トラック + アクティブ) (e.g. "border-indigo-200 border-t-indigo-600") */
+    spinner: string;
+
+    // --- プログレスインジケータ ---
+
+    /** 進捗表示 (背景 + テキスト) (e.g. "bg-indigo-50 text-indigo-700") */
+    progressIndicator: string;
+
+    // --- リンク ---
+
+    /** テキストリンク色 (e.g. "text-indigo-600") */
+    linkText: string;
 }
 
 /**
@@ -82,6 +155,8 @@ export interface AnimationThemeConfig {
         onCorrect?: () => ReactNode;
         /** 常時表示の背景パーティクル */
         ambient?: () => ReactNode;
+        /** スピーチタイム（interviewing フェーズ）のスポットライト演出。対象者名を受け取る */
+        onInterview?: (subjectName: string) => ReactNode;
         /** タイマー緊急時の追加 CSS クラス */
         timerUrgencyClass?: string;
     };

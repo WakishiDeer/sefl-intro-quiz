@@ -29,7 +29,9 @@ export function AnimationThemeProvider({ children }: Props) {
             <div className={themeConfig.rootClassName}>
                 {/* 常時パーティクル（テーマが定義している場合） */}
                 {themeConfig.effects.ambient?.()}
-                {children}
+                <div className="relative z-[2]">
+                    {children}
+                </div>
             </div>
         </AnimationThemeContext.Provider>
     );

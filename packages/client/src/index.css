@@ -123,7 +123,7 @@
 }
 
 .animate-cyber-flash {
-    animation: cyber-flash 1.2s ease-out forwards;
+    animation: cyber-flash 0.8s ease-out forwards;
 }
 
 /* CyberGlitch — 水平グリッチバー */
@@ -137,7 +137,7 @@
 }
 
 .animate-cyber-glitch-bar {
-    animation: cyber-glitch-bar 0.8s ease-out forwards;
+    animation: cyber-glitch-bar 0.6s ease-out forwards;
 }
 
 /* CyberGlitch — "ACCESS GRANTED" テキスト */
@@ -151,7 +151,7 @@
 }
 
 .animate-cyber-text {
-    animation: cyber-text 1.4s ease-out forwards;
+    animation: cyber-text 0.9s ease-out forwards;
 }
 
 /* CyberGlitch — スキャンライン走査 */
@@ -163,12 +163,32 @@
 }
 
 .animate-cyber-scanline {
-    animation: cyber-scanline 0.8s linear forwards;
+    animation: cyber-scanline 0.6s linear forwards;
 }
 
-/* Sakura テーマ — ルート装飾 */
+/* Sakura テーマ — ルート装飾（暖かみのある春の光） */
 .theme-sakura {
     --accent-color: #f9a8d4;
+    position: relative;
+}
+
+.theme-sakura::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background:
+        radial-gradient(ellipse at 25% 15%, rgba(251, 182, 206, 0.18) 0%, transparent 55%),
+        radial-gradient(ellipse at 75% 75%, rgba(253, 164, 175, 0.14) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 45%, rgba(249, 168, 212, 0.10) 0%, transparent 60%);
+    animation: sakura-atmosphere 10s ease-in-out infinite alternate;
+}
+
+@keyframes sakura-atmosphere {
+    0%   { opacity: 0.4; }
+    50%  { opacity: 0.8; }
+    100% { opacity: 0.5; }
 }
 
 /* Subtle テーマ — ルート */
@@ -249,4 +269,31 @@
 @keyframes sakura-pulse {
     from { box-shadow: 0 0 8px rgba(244, 114, 182, 0.4); }
     to   { box-shadow: 0 0 20px rgba(244, 114, 182, 0.7), 0 0 40px rgba(244, 114, 182, 0.3); }
+}
+
+/* ============================================================
+   SpotlightEffect — スピーチタイム演出用 keyframes
+   ============================================================ */
+
+/* 上からのビーム光線登場 */
+@keyframes spotlight-beam {
+    0%   { opacity: 0; transform: scaleY(0); transform-origin: top; }
+    30%  { opacity: 0.8; transform: scaleY(1); }
+    100% { opacity: 0.5; transform: scaleY(1); }
+}
+
+.animate-spotlight-beam {
+    animation: spotlight-beam 1s ease-out forwards;
+}
+
+/* デコレーション（絵文字・図形）のポップインアニメーション */
+@keyframes spotlight-deco {
+    0%   { opacity: 0; transform: translate(0, 0) scale(0) rotate(0deg); }
+    12%  { opacity: 1; transform: translate(0, 0) scale(1.6) rotate(calc(var(--deco-rotate) * 0.3)); }
+    100% { opacity: 0; transform: translate(var(--deco-dx), var(--deco-dy)) scale(0) rotate(var(--deco-rotate)); }
+}
+
+.animate-spotlight-deco {
+    animation: spotlight-deco 2s linear both;
+    pointer-events: none;
 }

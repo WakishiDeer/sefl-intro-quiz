@@ -26,8 +26,8 @@ interface GlitchBar {
     width: number;
 }
 
-const GLITCH_COUNT = 12;
-const DURATION_MS = 1500;
+const GLITCH_COUNT = 8;
+const DURATION_MS = 1000;
 
 const GLITCH_COLORS = [
     "rgba(0, 255, 255, 0.6)",
@@ -72,7 +72,7 @@ export function CyberGlitch() {
     if (!visible) return null;
 
     return (
-        <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden" aria-hidden="true">
+        <div className="pointer-events-none fixed inset-0 z-10 overflow-hidden" aria-hidden="true">
             {/* 全画面フラッシュ */}
             <div className="animate-cyber-flash absolute inset-0 bg-cyan-400/10" />
 
