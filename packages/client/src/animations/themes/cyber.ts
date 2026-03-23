@@ -10,11 +10,12 @@ import { createElement } from "react";
 import type { AnimationThemeConfig } from "../types.js";
 import { MatrixRain } from "../effects/MatrixRain.js";
 import { CyberGlitch } from "../effects/CyberGlitch.js";
+import { SpotlightEffect } from "../effects/SpotlightEffect.js";
 
 export const cyberTheme: AnimationThemeConfig = {
     name: "cyber",
     colors: {
-        bgGradient: "from-gray-950 via-slate-900 to-indigo-950",
+        bgGradient: "from-gray-950/85 via-slate-900/80 to-indigo-950/85",
         cardBg: "bg-gray-900/70 backdrop-blur-md border border-cyan-500/20",
         cardBorder: "border-cyan-500/40",
         buttonPrimary: "bg-cyan-600 shadow-lg shadow-cyan-500/40",
@@ -27,6 +28,26 @@ export const cyberTheme: AnimationThemeConfig = {
         explanationBg: "bg-cyan-950/70 backdrop-blur-sm border border-cyan-500/20",
         explanationText: "text-cyan-200",
         highlightGradient: "from-cyan-950/80 to-blue-950/80",
+        inputField: "bg-gray-800/80 border-cyan-500/30 text-gray-100 placeholder:text-gray-500",
+        inputFocus: "focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30",
+        labelText: "text-cyan-300",
+        surfaceMuted: "bg-gray-800/50",
+        badgeSuccess: "bg-green-900/60 text-green-300",
+        badgeError: "bg-red-900/60 text-red-300",
+        badgeWarning: "bg-yellow-900/60 text-yellow-300",
+        badgeMuted: "bg-gray-800/60 text-gray-500",
+        buttonDanger: "border-red-500/50 text-red-400 hover:bg-red-900/30",
+        buttonGhost: "border-cyan-500/30 text-cyan-400 hover:bg-cyan-900/20",
+        modalBg: "bg-gray-900/90 backdrop-blur-md",
+        choiceIndexBadge: "bg-cyan-600",
+        participantOnline: "bg-green-400",
+        participantOffline: "bg-gray-600",
+        statusOk: "text-green-400",
+        chipSelected: "bg-cyan-600 text-white",
+        chipDefault: "bg-gray-800 text-cyan-400 hover:bg-gray-700",
+        spinner: "border-cyan-800 border-t-cyan-400",
+        progressIndicator: "bg-cyan-950/70 text-cyan-300",
+        linkText: "text-cyan-400",
     },
     variants: {
         questionEntry: {
@@ -123,15 +144,29 @@ export const cyberTheme: AnimationThemeConfig = {
     },
     effects: {
         onCorrect: () => createElement(CyberGlitch),
+        onInterview: (name: string) => createElement(SpotlightEffect, {
+            subjectName: name,
+            config: {
+                color: "rgba(0, 255, 204, 0.5)",
+                glowColor: "rgba(0, 255, 255, 0.2)",
+                overlayColor: "rgba(0, 0, 0, 0.75)",
+                nameColor: "text-cyan-300",
+                nameGlow: "0 0 20px rgba(0,255,204,0.9), 0 0 50px rgba(0,255,255,0.5), 0 0 80px rgba(139,92,246,0.3)",
+                badgeClass: "bg-cyan-600",
+                decorEmojis: ["⚡", "💎", "🎤", "🔮", "▶", "◆"],
+                decorCount: 10,
+                style: "hard" as const,
+            },
+        }),
         timerUrgencyClass: "cyber-timer-urgent",
         ambient: () => createElement(MatrixRain, {
             config: {
                 color: "#00ffcc",
                 highlightColor: "#ffffff",
-                fontSize: 14,
-                speed: 0.6,
-                opacity: 0.35,
-                fadeAlpha: 0.06,
+                fontSize: 18,
+                speed: 0.35,
+                opacity: 0.55,
+                fadeAlpha: 0.04,
             },
         }),
     },

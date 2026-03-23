@@ -9,6 +9,7 @@ import { createElement } from "react";
 import type { AnimationThemeConfig } from "../types.js";
 import { ConfettiEffect } from "../effects/ConfettiEffect.js";
 import { AmbientParticles } from "../effects/AmbientParticles.js";
+import { SpotlightEffect } from "../effects/SpotlightEffect.js";
 
 export const partyTheme: AnimationThemeConfig = {
     name: "party",
@@ -20,12 +21,32 @@ export const partyTheme: AnimationThemeConfig = {
         buttonPrimaryHover: "hover:bg-fuchsia-700 hover:shadow-fuchsia-500/60",
         buttonAccent: "bg-pink-500 shadow-lg shadow-pink-400/50",
         buttonAccentHover: "hover:bg-pink-600",
-        textPrimary: "text-gray-900",
+        textPrimary: "text-fuchsia-950",
         textSecondary: "text-fuchsia-600",
         textAccent: "text-fuchsia-700",
         explanationBg: "bg-fuchsia-100/80 backdrop-blur-sm",
         explanationText: "text-fuchsia-900",
         highlightGradient: "from-fuchsia-100 to-pink-100",
+        inputField: "bg-white/80 border-fuchsia-300 text-fuchsia-950 placeholder:text-fuchsia-300",
+        inputFocus: "focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-200",
+        labelText: "text-fuchsia-800",
+        surfaceMuted: "bg-fuchsia-50/60",
+        badgeSuccess: "bg-green-100 text-green-700",
+        badgeError: "bg-red-100 text-red-700",
+        badgeWarning: "bg-yellow-100 text-yellow-700",
+        badgeMuted: "bg-gray-100 text-gray-400",
+        buttonDanger: "border-red-300 text-red-600 hover:bg-red-50",
+        buttonGhost: "border-fuchsia-300 text-fuchsia-600 hover:bg-fuchsia-50",
+        modalBg: "bg-white/90 backdrop-blur-sm",
+        choiceIndexBadge: "bg-fuchsia-600",
+        participantOnline: "bg-green-400",
+        participantOffline: "bg-gray-400",
+        statusOk: "text-green-500",
+        chipSelected: "bg-fuchsia-600 text-white",
+        chipDefault: "bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-100",
+        spinner: "border-fuchsia-200 border-t-fuchsia-600",
+        progressIndicator: "bg-fuchsia-50 text-fuchsia-700",
+        linkText: "text-fuchsia-600",
     },
     variants: {
         questionEntry: {
@@ -136,6 +157,20 @@ export const partyTheme: AnimationThemeConfig = {
                 twinkle: true,
                 direction: "float" as const,
                 opacity: 0.5,
+            },
+        }),
+        onInterview: (name: string) => createElement(SpotlightEffect, {
+            subjectName: name,
+            config: {
+                color: "rgba(192, 38, 211, 0.65)",
+                glowColor: "rgba(244, 114, 182, 0.35)",
+                overlayColor: "rgba(20, 0, 30, 0.6)",
+                nameColor: "text-white",
+                nameGlow: "0 0 30px rgba(244,114,182,0.8), 0 0 60px rgba(192,38,211,0.5), 0 0 90px rgba(167,139,250,0.3)",
+                badgeClass: "bg-fuchsia-500",
+                decorEmojis: ["🎉", "🎊", "🎤", "💃", "🕺", "🪩", "🔥"],
+                decorCount: 18,
+                style: "beam" as const,
             },
         }),
         timerUrgencyClass: "party-timer-urgent",

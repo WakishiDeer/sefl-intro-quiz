@@ -5,7 +5,9 @@
  * アニメーション嫌いな参加者にも受け入れやすいミニマルな演出。
  */
 
+import { createElement } from "react";
 import type { AnimationThemeConfig } from "../types.js";
+import { SpotlightEffect } from "../effects/SpotlightEffect.js";
 
 export const subtleTheme: AnimationThemeConfig = {
     name: "subtle",
@@ -17,12 +19,32 @@ export const subtleTheme: AnimationThemeConfig = {
         buttonPrimaryHover: "hover:bg-indigo-700",
         buttonAccent: "bg-amber-400",
         buttonAccentHover: "hover:bg-amber-500",
-        textPrimary: "text-gray-900",
-        textSecondary: "text-gray-500",
+        textPrimary: "text-slate-800",
+        textSecondary: "text-slate-500",
         textAccent: "text-indigo-600",
         explanationBg: "bg-blue-50",
         explanationText: "text-blue-900",
         highlightGradient: "from-indigo-50 to-purple-50",
+        inputField: "bg-white border-gray-300 text-slate-800 placeholder:text-slate-400",
+        inputFocus: "focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200",
+        labelText: "text-slate-700",
+        surfaceMuted: "bg-gray-50",
+        badgeSuccess: "bg-green-100 text-green-700",
+        badgeError: "bg-red-100 text-red-700",
+        badgeWarning: "bg-yellow-100 text-yellow-700",
+        badgeMuted: "bg-gray-100 text-gray-400",
+        buttonDanger: "border-red-300 text-red-600 hover:bg-red-50",
+        buttonGhost: "border-gray-300 text-gray-600 hover:bg-gray-50",
+        modalBg: "bg-white",
+        choiceIndexBadge: "bg-indigo-600",
+        participantOnline: "bg-green-400",
+        participantOffline: "bg-gray-400",
+        statusOk: "text-green-500",
+        chipSelected: "bg-indigo-600 text-white",
+        chipDefault: "bg-slate-100 text-slate-700 hover:bg-slate-200",
+        spinner: "border-indigo-200 border-t-indigo-600",
+        progressIndicator: "bg-indigo-50 text-indigo-700",
+        linkText: "text-indigo-600",
     },
     variants: {
         questionEntry: {
@@ -79,6 +101,21 @@ export const subtleTheme: AnimationThemeConfig = {
             animate: { opacity: 1, x: 0, transition: { duration: 0.3, ease: "easeOut" } },
         },
     },
-    effects: {},
+    effects: {
+        onInterview: (name: string) => createElement(SpotlightEffect, {
+            subjectName: name,
+            config: {
+                color: "rgba(99, 102, 241, 0.5)",
+                glowColor: "rgba(129, 140, 248, 0.2)",
+                overlayColor: "rgba(15, 23, 42, 0.65)",
+                nameColor: "text-white",
+                nameGlow: "0 0 30px rgba(129,140,248,0.7), 0 0 60px rgba(99,102,241,0.4)",
+                badgeClass: "bg-indigo-500",
+                decorEmojis: ["✨", "🎤", "💬"],
+                decorCount: 8,
+                style: "soft" as const,
+            },
+        }),
+    },
     rootClassName: "theme-subtle",
 };
