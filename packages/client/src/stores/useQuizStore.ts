@@ -9,6 +9,10 @@ import type {
     QuestionStartPayload,
     QuestionRevealPayload,
     ScoreEntry,
+    QuizHighlight,
+    InterviewStartPayload,
+    ParticipantAnswerResult,
+    QuestionResultSummary,
 } from "@self-intro-quiz/shared";
 
 interface QuizState {
@@ -23,27 +27,42 @@ interface QuizState {
 
     // 正解発表
     revealedAnswer: QuestionRevealPayload | null;
+    /** 現在の問題の参加者回答結果 */
+    participantResults: ParticipantAnswerResult[];
 
     // スコアボード
     scores: ScoreEntry[];
 
+    // 「気になる」投票
+    hasVotedCurious: boolean;
+
+    // インタビュー（スピーチ）タイム
+    interviewSpeech: InterviewStartPayload | null;
+
     // 最終結果
     isFinished: boolean;
     finalScores: ScoreEntry[];
+    highlights: QuizHighlight[];
+    /** 全問題の回答結果サマリー */
+    questionResults: QuestionResultSummary[];
 
     // クイズ生成状態
     isGenerating: boolean;
     isReady: boolean;
     generateError: string | null;
+    /** サーバから通知された総問題数 */
+    totalQuestions: number;
 
     // アクション
     setQuestion: (q: QuestionStartPayload) => void;
     setMyAnswer: (choiceIndex: number) => void;
     setAnswerCount: (count: number, total: number, nicknames: string[]) => void;
     setReveal: (reveal: QuestionRevealPayload) => void;
-    setFinished: (finalScores: ScoreEntry[]) => void;
+    setVotedCurious: () => void;
+    setInterview: (payload: InterviewStartPayload) => void;
+    setFinished: (finalScores: ScoreEntry[], highlights?: QuizHighlight[], questionResults?: QuestionResultSummary[]) => void;
     setGenerating: () => void;
-    setReady: () => void;
+    setReady: (totalQuestions: number) => void;
     setGenerateError: (message: string) => void;
     reset: () => void;
 }
@@ -56,12 +75,18 @@ const initialState = {
     totalParticipants: 0,
     answeredNicknames: [],
     revealedAnswer: null,
+    participantResults: [],
     scores: [],
+    hasVotedCurious: false,
+    interviewSpeech: null,
     isFinished: false,
     finalScores: [],
+    highlights: [],
+    questionResults: [],
     isGenerating: false,
     isReady: false,
     generateError: null,
+    totalQuestions: 0,
 };
 
 export const useQuizStore = create<QuizState>((set) => ({
@@ -76,6 +101,8 @@ export const useQuizStore = create<QuizState>((set) => ({
             totalParticipants: q.totalParticipants,
             answeredNicknames: [],
             revealedAnswer: null,
+            hasVotedCurious: false,
+            interviewSpeech: null,
         }),
 
     setMyAnswer: (choiceIndex) => set({ myAnswer: choiceIndex }),
@@ -87,13 +114,24 @@ export const useQuizStore = create<QuizState>((set) => ({
         set({
             revealedAnswer: reveal,
             scores: reveal.scores,
+            participantResults: reveal.participantResults ?? [],
             timerEndsAt: null,
         }),
 
-    setFinished: (finalScores) =>
+    setVotedCurious: () => set({ hasVotedCurious: true }),
+
+    setInterview: (payload) =>
+        set({
+            interviewSpeech: payload,
+            timerEndsAt: payload.speechEndsAt,
+        }),
+
+    setFinished: (finalScores, highlights, questionResults) =>
         set({
             isFinished: true,
             finalScores,
+            highlights: highlights ?? [],
+            questionResults: questionResults ?? [],
             currentQuestion: null,
             revealedAnswer: null,
             timerEndsAt: null,
@@ -102,8 +140,8 @@ export const useQuizStore = create<QuizState>((set) => ({
     setGenerating: () =>
         set({ isGenerating: true, isReady: false, generateError: null }),
 
-    setReady: () =>
-        set({ isGenerating: false, isReady: true, generateError: null }),
+    setReady: (totalQuestions) =>
+        set({ isGenerating: false, isReady: true, generateError: null, totalQuestions }),
 
     setGenerateError: (message) =>
         set({ isGenerating: false, isReady: false, generateError: message }),

@@ -7,7 +7,11 @@
 
 import { io, Socket } from "socket.io-client";
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3002";
+// 本番環境: 同一オリジン接続（Express が静的ファイルも配信するため）
+// 開発環境: VITE_SERVER_URL で指定されたサーバーへ直接接続
+const SERVER_URL = import.meta.env.PROD
+  ? window.location.origin
+  : (import.meta.env.VITE_SERVER_URL || "http://localhost:3001");
 
 export const socket: Socket = io(SERVER_URL, {
   autoConnect: false,

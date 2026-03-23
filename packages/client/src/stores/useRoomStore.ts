@@ -11,8 +11,9 @@ import type {
     ParticipantInfo,
     RoomStateSync,
     ProfileFieldDefinition,
+    AnimationThemeName,
 } from "@self-intro-quiz/shared";
-import { DEFAULT_PROFILE_FIELDS } from "@self-intro-quiz/shared";
+import { DEFAULT_PROFILE_FIELDS, DEFAULT_ANIMATION_THEME } from "@self-intro-quiz/shared";
 
 /** AI リクエストの状態 */
 type AIRequestState = "idle" | "collecting" | "generating" | "result";
@@ -30,6 +31,7 @@ interface RoomState {
     isHost: boolean;
     joinedAtQuestion: number;
     profileFields: ProfileFieldDefinition[];
+    animationTheme: AnimationThemeName;
 
     // AI リクエスト状態
     aiRequestState: AIRequestState;
@@ -37,9 +39,14 @@ interface RoomState {
     aiRequestSubmittedCount: number;
     aiRequestTotalParticipants: number;
     aiRequestSuggestedFields: ProfileFieldDefinition[] | null;
+    /** 非ホストがモーダルを閉じてオプトアウトしたかどうか */
+    aiRequestOptedOut: boolean;
 
     // プロフィール再入力要求
     profileInvalidated: boolean;
+
+    // 自分の送信済みプロフィール（ロビー復帰時の復元用）
+    myProfile: Record<string, string> | null;
 
     // アクション
     setConnected: (connected: boolean) => void;
@@ -49,10 +56,13 @@ interface RoomState {
     setPhase: (phase: RoomPhase) => void;
     setHost: (isHost: boolean) => void;
     setProfileFields: (fields: ProfileFieldDefinition[], profilesInvalidated: boolean) => void;
+    setMyProfile: (profile: Record<string, string> | null) => void;
+    setAnimationTheme: (theme: AnimationThemeName) => void;
     setAIRequestState: (state: AIRequestState) => void;
-    setAIRequestStarted: (expiresAt: number) => void;
+    setAIRequestStarted: (expiresAt: number, totalParticipants: number) => void;
     setAIRequestStatus: (submittedCount: number, totalParticipants: number) => void;
     setAIRequestResult: (fields: ProfileFieldDefinition[]) => void;
+    setAIRequestOptedOut: (optedOut: boolean) => void;
     resetAIRequest: () => void;
     clearProfileInvalidated: () => void;
     reset: () => void;
@@ -68,12 +78,15 @@ const initialState = {
     isHost: false,
     joinedAtQuestion: -1,
     profileFields: DEFAULT_PROFILE_FIELDS as ProfileFieldDefinition[],
+    animationTheme: DEFAULT_ANIMATION_THEME as AnimationThemeName,
     aiRequestState: "idle" as AIRequestState,
     aiRequestExpiresAt: null as number | null,
     aiRequestSubmittedCount: 0,
     aiRequestTotalParticipants: 0,
     aiRequestSuggestedFields: null as ProfileFieldDefinition[] | null,
+    aiRequestOptedOut: false,
     profileInvalidated: false,
+    myProfile: null as Record<string, string> | null,
 };
 
 export const useRoomStore = create<RoomState>((set) => ({
@@ -93,6 +106,8 @@ export const useRoomStore = create<RoomState>((set) => ({
             nickname: state.self.nickname,
             joinedAtQuestion: state.self.joinedAtQuestion,
             profileFields: state.room.profileFields,
+            animationTheme: state.room.animationTheme,
+            myProfile: state.self.profile ?? null,
         }),
 
     updateParticipants: (participants) => set({ participants }),
@@ -105,16 +120,23 @@ export const useRoomStore = create<RoomState>((set) => ({
         set({
             profileFields: fields,
             profileInvalidated: profilesInvalidated,
+            ...(profilesInvalidated ? { myProfile: null } : {}),
         }),
+
+    setMyProfile: (profile) => set({ myProfile: profile }),
+
+    setAnimationTheme: (theme) => set({ animationTheme: theme }),
 
     setAIRequestState: (aiRequestState) => set({ aiRequestState }),
 
-    setAIRequestStarted: (expiresAt) =>
+    setAIRequestStarted: (expiresAt, totalParticipants) =>
         set({
             aiRequestState: "collecting",
             aiRequestExpiresAt: expiresAt,
             aiRequestSubmittedCount: 0,
+            aiRequestTotalParticipants: totalParticipants,
             aiRequestSuggestedFields: null,
+            aiRequestOptedOut: false,
         }),
 
     setAIRequestStatus: (submittedCount, totalParticipants) =>
@@ -126,6 +148,8 @@ export const useRoomStore = create<RoomState>((set) => ({
             aiRequestSuggestedFields: fields,
         }),
 
+    setAIRequestOptedOut: (optedOut) => set({ aiRequestOptedOut: optedOut }),
+
     resetAIRequest: () =>
         set({
             aiRequestState: "idle",
@@ -133,6 +157,7 @@ export const useRoomStore = create<RoomState>((set) => ({
             aiRequestSubmittedCount: 0,
             aiRequestTotalParticipants: 0,
             aiRequestSuggestedFields: null,
+            aiRequestOptedOut: false,
         }),
 
     clearProfileInvalidated: () => set({ profileInvalidated: false }),

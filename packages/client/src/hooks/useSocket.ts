@@ -23,6 +23,7 @@ import type {
     RoomStateSync,
     ScoreEntry,
     FieldsUpdatedPayload,
+    InterviewStartPayload,
     AIRequestStartedPayload,
     AIRequestStatusPayload,
     AIRequestResultPayload,
@@ -57,7 +58,12 @@ export function useSocket(): void {
             const { phase } = roomState.room;
             const { currentQuestion, revealedAnswer } = roomState;
 
-            if (phase === "playing" || phase === "revealing") {
+            // サーバから通知された総問題数を復元
+            if (roomState.room.totalQuestions > 0) {
+                quizStore.setReady(roomState.room.totalQuestions);
+            }
+
+            if (phase === "playing" || phase === "revealing" || phase === "interviewing") {
                 if (currentQuestion) {
                     // 問題情報を復元（CurrentQuestionInfo は QuestionStartPayload のスーパーセット）
                     quizStore.setQuestion(currentQuestion);
@@ -69,12 +75,25 @@ export function useSocket(): void {
                     );
                 }
 
-                if (revealedAnswer && phase === "revealing" && currentQuestion) {
+                if (revealedAnswer && (phase === "revealing" || phase === "interviewing") && currentQuestion) {
                     // 正解発表情報を復元
                     quizStore.setReveal({
                         questionIndex: currentQuestion.index,
                         ...revealedAnswer,
                     });
+                }
+
+                // interviewing 中はインタビュー対象者情報も復元
+                if (phase === "interviewing" && roomState.interviewSpeech) {
+                    quizStore.setInterview({
+                        subjectNickname: roomState.interviewSpeech.subjectNickname,
+                        speechEndsAt: roomState.interviewSpeech.speechEndsAt,
+                    });
+                }
+
+                // revealing 中は「気になる」投票状態を復元
+                if (phase === "revealing" && roomState.hasVotedCurious) {
+                    quizStore.setVotedCurious();
                 }
             } else if (phase === "generating") {
                 quizStore.setGenerating();
@@ -221,7 +240,7 @@ export function useSocket(): void {
 
         // AI リクエストイベント
         const onAIRequestStarted = (payload: AIRequestStartedPayload) => {
-            useRoomStore.getState().setAIRequestStarted(payload.expiresAt);
+            useRoomStore.getState().setAIRequestStarted(payload.expiresAt, payload.totalParticipants);
         };
 
         const onAIRequestStatus = (payload: AIRequestStatusPayload) => {
@@ -235,13 +254,22 @@ export function useSocket(): void {
             useRoomStore.getState().setAIRequestResult(payload.suggestedFields);
         };
 
-        const onAIRequestCancelled = (_payload: AIRequestCancelledPayload) => {
+        const onAIRequestCancelled = (payload: AIRequestCancelledPayload) => {
             useRoomStore.getState().resetAIRequest();
-            useToastStore.getState().showToast("AI リクエストがキャンセルされました");
+            if (payload.reason === "discarded") {
+                useToastStore.getState().showToast("AI 提案が破棄されました");
+            } else if (payload.reason === "cancelled") {
+                useToastStore.getState().showToast("AI リクエストがキャンセルされました");
+            }
         };
 
         const onAIRequestGenerating = () => {
             useRoomStore.getState().setAIRequestState("generating");
+        };
+
+        // アニメーションテーマ変更
+        const onThemeChanged = (payload: { theme: string }) => {
+            useRoomStore.getState().setAnimationTheme(payload.theme as import("@self-intro-quiz/shared").AnimationThemeName);
         };
 
         // ロビー復帰: クイズ終了後にロビーに戻る
@@ -262,8 +290,8 @@ export function useSocket(): void {
             useRoomStore.getState().setPhase("generating");
         };
 
-        const onQuizReady = () => {
-            useQuizStore.getState().setReady();
+        const onQuizReady = (payload: { totalQuestions: number }) => {
+            useQuizStore.getState().setReady(payload.totalQuestions);
         };
 
         const onQuizGenerateFailed = (payload: { message: string }) => {
@@ -289,8 +317,13 @@ export function useSocket(): void {
             useRoomStore.getState().setPhase("revealing");
         };
 
+        const onInterviewStart = (payload: InterviewStartPayload) => {
+            useQuizStore.getState().setInterview(payload);
+            useRoomStore.getState().setPhase("interviewing");
+        };
+
         const onQuizFinished = (payload: QuizFinishedPayload) => {
-            useQuizStore.getState().setFinished(payload.finalScores);
+            useQuizStore.getState().setFinished(payload.finalScores, payload.highlights, payload.questionResults);
             useRoomStore.getState().setPhase("finished");
         };
 
@@ -325,12 +358,14 @@ export function useSocket(): void {
         socket.on(S2C_EVENTS.AI_REQUEST_RESULT, onAIRequestResult);
         socket.on(S2C_EVENTS.AI_REQUEST_CANCELLED, onAIRequestCancelled);
         socket.on(S2C_EVENTS.AI_REQUEST_GENERATING, onAIRequestGenerating);
+        socket.on(S2C_EVENTS.ROOM_THEME_CHANGED, onThemeChanged);
         socket.on(S2C_EVENTS.QUIZ_GENERATING, onQuizGenerating);
         socket.on(S2C_EVENTS.QUIZ_READY, onQuizReady);
         socket.on(S2C_EVENTS.QUIZ_GENERATE_FAILED, onQuizGenerateFailed);
         socket.on(S2C_EVENTS.QUESTION_START, onQuestionStart);
         socket.on(S2C_EVENTS.QUESTION_ANSWER_COUNT, onAnswerCount);
         socket.on(S2C_EVENTS.QUESTION_REVEAL, onQuestionReveal);
+        socket.on(S2C_EVENTS.INTERVIEW_START, onInterviewStart);
         socket.on(S2C_EVENTS.QUIZ_FINISHED, onQuizFinished);
         socket.on(S2C_EVENTS.ROOM_ERROR, onError);
 
@@ -352,12 +387,14 @@ export function useSocket(): void {
             socket.off(S2C_EVENTS.AI_REQUEST_RESULT, onAIRequestResult);
             socket.off(S2C_EVENTS.AI_REQUEST_CANCELLED, onAIRequestCancelled);
             socket.off(S2C_EVENTS.AI_REQUEST_GENERATING, onAIRequestGenerating);
+            socket.off(S2C_EVENTS.ROOM_THEME_CHANGED, onThemeChanged);
             socket.off(S2C_EVENTS.QUIZ_GENERATING, onQuizGenerating);
             socket.off(S2C_EVENTS.QUIZ_READY, onQuizReady);
             socket.off(S2C_EVENTS.QUIZ_GENERATE_FAILED, onQuizGenerateFailed);
             socket.off(S2C_EVENTS.QUESTION_START, onQuestionStart);
             socket.off(S2C_EVENTS.QUESTION_ANSWER_COUNT, onAnswerCount);
             socket.off(S2C_EVENTS.QUESTION_REVEAL, onQuestionReveal);
+            socket.off(S2C_EVENTS.INTERVIEW_START, onInterviewStart);
             socket.off(S2C_EVENTS.QUIZ_FINISHED, onQuizFinished);
             socket.off(S2C_EVENTS.ROOM_ERROR, onError);
         };
