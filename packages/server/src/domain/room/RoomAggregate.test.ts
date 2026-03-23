@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { RoomAggregate, RoomDomainError } from "./RoomAggregate.js";
 import type { Profile, Room, ProfileFieldDefinition } from "@self-intro-quiz/shared";
-import { MAX_PARTICIPANTS, DEFAULT_PROFILE_FIELDS, MIN_PROFILE_FIELDS, MAX_PROFILE_FIELDS } from "@self-intro-quiz/shared";
+import { MAX_PARTICIPANTS, DEFAULT_PROFILE_FIELDS, MIN_PROFILE_FIELDS, MAX_PROFILE_FIELDS, DEFAULT_ANIMATION_THEME } from "@self-intro-quiz/shared";
 
 // ============================================================
 // ヘルパー
@@ -869,6 +869,58 @@ describe("RoomAggregate", () => {
 
         it("デフォルトのプロフィール項目が初期値として設定されている", () => {
             expect(room.profileFields).toEqual(DEFAULT_PROFILE_FIELDS);
+        });
+    });
+
+    // ----------------------------------------------------------
+    // アニメーションテーマ
+    // ----------------------------------------------------------
+
+    describe("setAnimationTheme", () => {
+        it("デフォルトは subtle テーマ", () => {
+            expect(room.animationTheme).toBe(DEFAULT_ANIMATION_THEME);
+            expect(room.animationTheme).toBe("subtle");
+        });
+
+        it("Host がテーマを変更できる", () => {
+            room.setAnimationTheme("fun", room.hostId);
+            expect(room.animationTheme).toBe("fun");
+        });
+
+        it("全テーマに変更可能", () => {
+            const themes = ["subtle", "fun", "cyber", "party", "sakura"] as const;
+            for (const theme of themes) {
+                room.setAnimationTheme(theme, room.hostId);
+                expect(room.animationTheme).toBe(theme);
+            }
+        });
+
+        it("Non-host がテーマを変更しようとするとエラー", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            try {
+                room.setAnimationTheme("fun", bob.id);
+                expect.fail("should have thrown");
+            } catch (e) {
+                expect(e).toBeInstanceOf(RoomDomainError);
+                expect((e as RoomDomainError).code).toBe("NOT_HOST");
+            }
+        });
+
+        it("lobby 以外のフェーズではエラー", () => {
+            room.changePhase("playing");
+            try {
+                room.setAnimationTheme("cyber", room.hostId);
+                expect.fail("should have thrown");
+            } catch (e) {
+                expect(e).toBeInstanceOf(RoomDomainError);
+                expect((e as RoomDomainError).code).toBe("INVALID_PHASE");
+            }
+        });
+
+        it("toRoom() にテーマが含まれる", () => {
+            room.setAnimationTheme("sakura", room.hostId);
+            const roomData = room.toRoom();
+            expect(roomData.animationTheme).toBe("sakura");
         });
     });
 });

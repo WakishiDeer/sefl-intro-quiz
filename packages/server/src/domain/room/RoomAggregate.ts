@@ -12,8 +12,9 @@ import type {
     Participant,
     Profile,
     ProfileFieldDefinition,
+    AnimationThemeName,
 } from "@self-intro-quiz/shared";
-import { MAX_PARTICIPANTS, DEFAULT_PROFILE_FIELDS, MIN_PROFILE_FIELDS, MAX_PROFILE_FIELDS } from "@self-intro-quiz/shared";
+import { MAX_PARTICIPANTS, DEFAULT_PROFILE_FIELDS, MIN_PROFILE_FIELDS, MAX_PROFILE_FIELDS, DEFAULT_ANIMATION_THEME, ANIMATION_THEMES } from "@self-intro-quiz/shared";
 
 // ============================================================
 // ドメインエラー
@@ -79,6 +80,7 @@ export class RoomAggregate {
             phase: "lobby",
             participants,
             profileFields: [...DEFAULT_PROFILE_FIELDS],
+            animationTheme: DEFAULT_ANIMATION_THEME,
             createdAt: now,
             lastActivityAt: now,
         };
@@ -426,6 +428,34 @@ export class RoomAggregate {
     }
 
     // ----------------------------------------------------------
+    // アニメーションテーマ
+    // ----------------------------------------------------------
+
+    /**
+     * アニメーションテーマを変更する。
+     * Host のみがロビーフェーズで変更可能。
+     *
+     * @param theme - 新しいテーマ名
+     * @param callerParticipantId - 変更をリクエストした参加者の ID
+     * @throws RoomDomainError NOT_HOST — Host 以外が変更しようとした場合
+     * @throws RoomDomainError INVALID_PHASE — lobby 以外のフェーズで変更しようとした場合
+     * @throws RoomDomainError INVALID_THEME — 無効なテーマ名の場合
+     */
+    setAnimationTheme(theme: AnimationThemeName, callerParticipantId: string): void {
+        if (!this.isHost(callerParticipantId)) {
+            throw new RoomDomainError("NOT_HOST", "テーマを変更できるのはホストのみです");
+        }
+        if (this.room.phase !== "lobby") {
+            throw new RoomDomainError("INVALID_PHASE", "テーマの変更はロビーでのみ可能です");
+        }
+        if (!ANIMATION_THEMES.includes(theme)) {
+            throw new RoomDomainError("INVALID_THEME", `無効なテーマ名です: ${theme}`);
+        }
+        this.room.animationTheme = theme;
+        this.room.lastActivityAt = Date.now();
+    }
+
+    // ----------------------------------------------------------
     // クエリ
     // ----------------------------------------------------------
 
@@ -524,6 +554,11 @@ export class RoomAggregate {
     /** 現在のプロフィール項目定義 */
     get profileFields(): ProfileFieldDefinition[] {
         return this.room.profileFields;
+    }
+
+    /** 現在のアニメーションテーマ */
+    get animationTheme(): AnimationThemeName {
+        return this.room.animationTheme;
     }
 
     /** 現在のフェーズ */

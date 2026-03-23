@@ -11,12 +11,15 @@ import type {
     Answer,
     Participant,
     ScoreEntry,
+    QuizHighlight,
     QuestionStartPayload,
     QuestionRevealPayload,
+    ParticipantAnswerResult,
+    QuestionResultSummary,
 } from "@self-intro-quiz/shared";
 import {
-    TOTAL_QUESTIONS,
     SCORE_PER_CORRECT,
+    CURIOUS_VOTE_THRESHOLD,
 } from "@self-intro-quiz/shared";
 
 // ============================================================
@@ -59,6 +62,7 @@ export class QuizAggregate {
             currentQuestionIndex: -1,
             timerEndsAt: null,
             answers: new Map(),
+            curiousVotes: new Map(),
         };
         return new QuizAggregate(quiz);
     }
@@ -92,6 +96,7 @@ export class QuizAggregate {
 
         return {
             index: 0,
+            questionType: question.questionType,
             text: question.text,
             choices: question.choices,
             timerEndsAt,
@@ -108,7 +113,7 @@ export class QuizAggregate {
      */
     nextQuestion(timerEndsAt: number, totalParticipants: number): QuestionStartPayload | null {
         const nextIndex = this.quiz.currentQuestionIndex + 1;
-        if (nextIndex >= TOTAL_QUESTIONS) {
+        if (nextIndex >= this.quiz.questions.length) {
             return null; // 全問終了
         }
 
@@ -122,6 +127,7 @@ export class QuizAggregate {
 
         return {
             index: nextIndex,
+            questionType: question.questionType,
             text: question.text,
             choices: question.choices,
             timerEndsAt,
@@ -251,6 +257,7 @@ export class QuizAggregate {
             correctIndex: question.correctIndex,
             explanation: question.explanation,
             scores: this.computeScoreboard(participants),
+            participantResults: this.computeParticipantResults(currentIndex, participants),
         };
     }
 
@@ -346,14 +353,395 @@ export class QuizAggregate {
         return this.quiz.roomCode;
     }
 
+    /** 総問題数 */
+    get totalQuestions(): number {
+        return this.quiz.questions.length;
+    }
+
     /** 全問終了したか */
     get isFinished(): boolean {
-        return this.quiz.currentQuestionIndex >= TOTAL_QUESTIONS - 1;
+        return this.quiz.currentQuestionIndex >= this.quiz.questions.length - 1;
     }
 
     /** 現在の問題 */
     get currentQuestion(): Question | undefined {
         return this.quiz.questions[this.quiz.currentQuestionIndex];
+    }
+
+    /** 現在の問題の対象者 participantId を返す。未開始なら undefined */
+    get currentSubjectId(): string | undefined {
+        return this.currentQuestion?.subjectId;
+    }
+
+    // ----------------------------------------------------------
+    // 「気になる」投票
+    // ----------------------------------------------------------
+
+    /**
+     * 参加者が現在の問題の対象者に「気になる」投票する。
+     * 重複投票は無視（Set で管理）。
+     */
+    voteCurious(participantId: string, questionIndex: number): void {
+        if (questionIndex !== this.quiz.currentQuestionIndex) {
+            throw new QuizDomainError("QUESTION_CLOSED", "この問題は既に終了しています");
+        }
+        if (!this.quiz.curiousVotes.has(questionIndex)) {
+            this.quiz.curiousVotes.set(questionIndex, new Set());
+        }
+        this.quiz.curiousVotes.get(questionIndex)!.add(participantId);
+    }
+
+    /**
+     * 現在の問題の「気になる」投票数が閾値以上か判定する。
+     *
+     * @param eligibleCount - 投票可能な参加者数
+     * @returns true ならスピーチ発動
+     */
+    hasCuriousThreshold(eligibleCount: number): boolean {
+        const votes = this.quiz.curiousVotes.get(this.quiz.currentQuestionIndex);
+        const voteCount = votes ? votes.size : 0;
+        return eligibleCount > 0 && voteCount / eligibleCount >= CURIOUS_VOTE_THRESHOLD;
+    }
+
+    /**
+     * 参加者が現在の問題で既に「気になる」投票済みか判定する。
+     */
+    hasVotedCurious(participantId: string, questionIndex: number): boolean {
+        const votes = this.quiz.curiousVotes.get(questionIndex);
+        return votes ? votes.has(participantId) : false;
+    }
+
+    // ----------------------------------------------------------
+    // 参加者ごとの回答結果
+    // ----------------------------------------------------------
+
+    /**
+     * 指定した問題の参加者ごとの回答結果を算出する。
+     * 途中参加者は joinedAtQuestion より前の問題では isIneligible = true。
+     * タイムアウト（choiceIndex === -1）は isTimeout = true。
+     */
+    computeParticipantResults(
+        questionIndex: number,
+        participants: Map<string, Participant>,
+    ): ParticipantAnswerResult[] {
+        const results: ParticipantAnswerResult[] = [];
+
+        for (const [participantId, participant] of participants) {
+            const isIneligible =
+                participant.joinedAtQuestion !== -1 &&
+                participant.joinedAtQuestion > questionIndex;
+
+            if (isIneligible) {
+                results.push({
+                    nickname: participant.nickname,
+                    isCorrect: false,
+                    isTimeout: false,
+                    isIneligible: true,
+                    choiceIndex: -1,
+                });
+                continue;
+            }
+
+            const answers = this.quiz.answers.get(participantId) ?? [];
+            const answer = answers.find((a) => a.questionIndex === questionIndex);
+
+            if (!answer) {
+                // 回答レコードがない（回答前の時点で呼ばれた場合など）
+                results.push({
+                    nickname: participant.nickname,
+                    isCorrect: false,
+                    isTimeout: false,
+                    isIneligible: false,
+                    choiceIndex: -1,
+                });
+                continue;
+            }
+
+            results.push({
+                nickname: participant.nickname,
+                isCorrect: answer.isCorrect,
+                isTimeout: answer.choiceIndex === -1,
+                isIneligible: false,
+                choiceIndex: answer.choiceIndex,
+            });
+        }
+
+        return results;
+    }
+
+    /**
+     * 全問題の回答結果サマリーを算出する。
+     * 結果画面での一覧表示に使用。
+     */
+    computeAllQuestionResults(
+        participants: Map<string, Participant>,
+    ): QuestionResultSummary[] {
+        return this.quiz.questions.map((question, qi) => ({
+            questionIndex: qi,
+            text: question.text,
+            correctIndex: question.correctIndex,
+            choices: question.choices,
+            participantResults: this.computeParticipantResults(qi, participants),
+        }));
+    }
+
+    // ----------------------------------------------------------
+    // ハイライト計算
+    // ----------------------------------------------------------
+
+    /**
+     * クイズ終了後のハイライト情報を計算する。
+     * 全問終了後に呼び出し、結果画面に表示する盛り上がりポイントを抽出する。
+     */
+    computeHighlights(participants: Map<string, Participant>): QuizHighlight[] {
+        const highlights: QuizHighlight[] = [];
+
+        // --- 全問正解（パーフェクト） ---
+        const perfectScorers = this.findPerfectScorers(participants);
+        if (perfectScorers.length > 0) {
+            highlights.push({
+                emoji: "🎯",
+                title: "パーフェクト！",
+                description:
+                    perfectScorers.length === 1
+                        ? `${perfectScorers[0]} さんが全問正解を達成！`
+                        : `${perfectScorers.join("、")} さんが全問正解を達成！`,
+            });
+        }
+
+        // --- スピードスター（最速平均回答者） ---
+        const speedStar = this.findSpeedStar(participants);
+        if (speedStar) {
+            highlights.push({
+                emoji: "⚡",
+                title: "スピードスター",
+                description: `${speedStar.nickname} さんが最速！平均 ${speedStar.avgSeconds} 秒で回答`,
+            });
+        }
+
+        // --- 連続正解王 ---
+        const streakKing = this.findStreakKing(participants);
+        if (streakKing && streakKing.streak >= 3) {
+            highlights.push({
+                emoji: "🔥",
+                title: "連続正解王",
+                description: `${streakKing.nickname} さんが ${streakKing.streak} 問連続正解！`,
+            });
+        }
+
+        // --- 最難問 ---
+        const hardest = this.findHardestQuestion(participants);
+        if (hardest) {
+            highlights.push({
+                emoji: "😱",
+                title: "最難問",
+                description: `Q${hardest.questionNumber}「${hardest.questionText}」— 正答率 ${hardest.correctRate}%`,
+            });
+        }
+
+        // --- 気になる大賞 ---
+        const mostCurious = this.findMostCuriousQuestion();
+        if (mostCurious) {
+            highlights.push({
+                emoji: "🤔",
+                title: "気になる大賞",
+                description: `Q${mostCurious.questionNumber}「${mostCurious.questionText}」に ${mostCurious.voteCount} 票の「気になる！」`,
+            });
+        }
+
+        return highlights;
+    }
+
+    /**
+     * 全問正解の参加者ニックネーム一覧を返す。
+     * 途中参加者は回答可能だった問題を全問正解していればパーフェクト扱い。
+     */
+    private findPerfectScorers(participants: Map<string, Participant>): string[] {
+        const result: string[] = [];
+        for (const [participantId, participant] of participants) {
+            const answers = this.quiz.answers.get(participantId) ?? [];
+            const eligibleQuestions =
+                participant.joinedAtQuestion === -1
+                    ? this.quiz.questions.length
+                    : Math.max(0, this.quiz.questions.length - participant.joinedAtQuestion);
+            if (eligibleQuestions === 0) continue;
+
+            const correctCount = answers.filter((a) => a.isCorrect).length;
+            if (correctCount === eligibleQuestions) {
+                result.push(participant.nickname);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 最速平均回答時間の参加者を見つける。
+     * タイムアウト未回答（choiceIndex === -1）は除外して計算する。
+     */
+    private findSpeedStar(
+        participants: Map<string, Participant>,
+    ): { nickname: string; avgSeconds: number } | null {
+        let fastest: { nickname: string; avgMs: number } | null = null;
+
+        for (const [participantId, participant] of participants) {
+            const answers = this.quiz.answers.get(participantId) ?? [];
+            // 実際に回答した（タイムアウトでない）回答のみ
+            const validAnswers = answers.filter((a) => a.choiceIndex !== -1);
+            if (validAnswers.length < 2) continue; // 少なすぎる場合はスキップ
+
+            // 問題ごとの開始時刻が直接取れないため、同じ問題の全回答者の中で最も早い回答を基準にする
+            let totalRelativeMs = 0;
+            let measuredCount = 0;
+            for (const answer of validAnswers) {
+                const allAnswersForQuestion: Answer[] = [];
+                for (const answers2 of this.quiz.answers.values()) {
+                    const a = answers2.find(
+                        (a2) => a2.questionIndex === answer.questionIndex && a2.choiceIndex !== -1,
+                    );
+                    if (a) allAnswersForQuestion.push(a);
+                }
+                if (allAnswersForQuestion.length < 2) continue;
+
+                const earliest = Math.min(...allAnswersForQuestion.map((a) => a.answeredAt));
+                const latest = Math.max(...allAnswersForQuestion.map((a) => a.answeredAt));
+                if (latest === earliest) continue; // 全員同時なら差がない
+
+                totalRelativeMs += answer.answeredAt - earliest;
+                measuredCount++;
+            }
+
+            if (measuredCount < 2) continue;
+
+            const avgMs = totalRelativeMs / measuredCount;
+
+            if (!fastest || avgMs < fastest.avgMs) {
+                fastest = { nickname: participant.nickname, avgMs };
+            }
+        }
+
+        if (!fastest) return null;
+
+        // 表示用に秒に変換（小数点第1位）
+        let avgSeconds = Math.round((fastest.avgMs / 1000) * 10) / 10;
+        // avgSeconds が 0 の場合（常に最速回答）、0.0 秒と表示するのは不自然なので調整
+        if (avgSeconds === 0) {
+            avgSeconds = 0.1; // 「ほぼ最速」として表示
+        }
+
+        return { nickname: fastest.nickname, avgSeconds };
+    }
+
+    /**
+     * 最長連続正解記録を持つ参加者を見つける。
+     */
+    private findStreakKing(
+        participants: Map<string, Participant>,
+    ): { nickname: string; streak: number } | null {
+        let best: { nickname: string; streak: number } | null = null;
+
+        for (const [participantId, participant] of participants) {
+            const answers = this.quiz.answers.get(participantId) ?? [];
+            // 問題番号順にソート
+            const sorted = [...answers].sort((a, b) => a.questionIndex - b.questionIndex);
+
+            let currentStreak = 0;
+            let maxStreak = 0;
+
+            for (const answer of sorted) {
+                if (answer.isCorrect) {
+                    currentStreak++;
+                    maxStreak = Math.max(maxStreak, currentStreak);
+                } else {
+                    currentStreak = 0;
+                }
+            }
+
+            if (!best || maxStreak > best.streak) {
+                best = { nickname: participant.nickname, streak: maxStreak };
+            }
+        }
+
+        return best;
+    }
+
+    /**
+     * 最も正答率が低い問題を見つける。
+     */
+    private findHardestQuestion(
+        participants: Map<string, Participant>,
+    ): { questionNumber: number; questionText: string; correctRate: number } | null {
+        if (this.quiz.questions.length === 0) return null;
+
+        let hardest: { questionNumber: number; questionText: string; correctRate: number } | null =
+            null;
+
+        for (let qi = 0; qi < this.quiz.questions.length; qi++) {
+            const question = this.quiz.questions[qi]!;
+            let correct = 0;
+            let total = 0;
+
+            for (const [participantId, participant] of participants) {
+                // 途中参加者はその問題に回答できなかった場合スキップ
+                if (participant.joinedAtQuestion > qi) continue;
+
+                const answer = (this.quiz.answers.get(participantId) ?? []).find(
+                    (a) => a.questionIndex === qi,
+                );
+                if (answer) {
+                    total++;
+                    if (answer.isCorrect) correct++;
+                }
+            }
+
+            if (total === 0) continue;
+
+            const correctRate = Math.round((correct / total) * 100);
+            // 問題文が30文字を超える場合は省略
+            const questionText =
+                question.text.length > 30
+                    ? question.text.slice(0, 30) + "…"
+                    : question.text;
+
+            if (!hardest || correctRate < hardest.correctRate) {
+                hardest = { questionNumber: qi + 1, questionText, correctRate };
+            }
+        }
+
+        return hardest;
+    }
+
+    /**
+     * 最も「気になる」投票を集めた問題を見つける。
+     */
+    private findMostCuriousQuestion(): {
+        questionNumber: number;
+        questionText: string;
+        voteCount: number;
+    } | null {
+        let best: { questionNumber: number; questionText: string; voteCount: number } | null =
+            null;
+
+        for (const [questionIndex, votes] of this.quiz.curiousVotes) {
+            if (votes.size === 0) continue;
+
+            const question = this.quiz.questions[questionIndex];
+            if (!question) continue;
+
+            const questionText =
+                question.text.length > 30
+                    ? question.text.slice(0, 30) + "…"
+                    : question.text;
+
+            if (!best || votes.size > best.voteCount) {
+                best = {
+                    questionNumber: questionIndex + 1,
+                    questionText,
+                    voteCount: votes.size,
+                };
+            }
+        }
+
+        return best;
     }
 
     /** Quiz データのスナップショットを返す */

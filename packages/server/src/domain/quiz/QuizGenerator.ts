@@ -2,10 +2,11 @@
  * QuizGenerator — クイズ生成ポート
  *
  * Quiz Context のドメイン層に配置。
- * Infrastructure 層の ClaudeQuizGenerator が実装する。
+ * Infrastructure 層の AzureOpenAIQuizGenerator / StubQuizGenerator が実装する。
  */
 
 import type { Profile, ProfileFieldDefinition, Question } from "@self-intro-quiz/shared";
+import type { QuizCountConfig } from "@self-intro-quiz/shared";
 
 /** クイズ生成に必要な参加者情報 */
 export interface ParticipantProfile {
@@ -20,10 +21,15 @@ export interface ParticipantProfile {
  */
 export interface QuizGenerator {
     /**
-     * 参加者プロフィールから10問の4択クイズを生成する。
+     * 参加者プロフィールからクイズを生成する。
      *
      * @param participants - プロフィール入力済みの参加者一覧
      * @param profileFields - 現在のプロフィール項目定義（ラベル解決用）
+     * @param quizConfig - 問題数の構成（総数・⭕❌問題数・4択問題数）
      */
-    generate(participants: ParticipantProfile[], profileFields: ProfileFieldDefinition[]): Promise<Question[]>;
+    generate(
+        participants: ParticipantProfile[],
+        profileFields: ProfileFieldDefinition[],
+        quizConfig: QuizCountConfig,
+    ): Promise<Question[]>;
 }

@@ -3,7 +3,7 @@
  *
  * Room Context のドメイン層に配置。
  * 参加者のリクエストを集約して、AI にプロフィール項目を提案させる。
- * Infrastructure 層の ClaudeProfileFieldSuggester が実装する。
+ * Infrastructure 層の AzureOpenAIProfileFieldSuggester / StubProfileFieldSuggester が実装する。
  */
 
 import type { ProfileFieldDefinition } from "@self-intro-quiz/shared";
