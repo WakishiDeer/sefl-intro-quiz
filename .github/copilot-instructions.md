@@ -245,7 +245,7 @@ lobby → generating → playing ⇄ revealing ⇄ interviewing → finished
 - Host のみがフェーズ遷移をトリガーできる
 - `playing → revealing` はサーバが自動実行（全員回答 or タイムアウト）
 - `revealing → interviewing` は Host が `quiz:next-question` を押した時、「気になる」投票が50%以上なら自動遷移
-- `interviewing → playing/finished` は1分タイマー満了で自動、または Host が `quiz:next-question` で手動スキップ
+- `interviewing → playing/finished` は Host が `quiz:next-question` で手動遷移（自動遷移なし）
 
 ## Socket.IO イベント
 
@@ -303,6 +303,61 @@ QUESTION_TIME_LIMIT=30000     # ms
 ROOM_TIMEOUT_MINUTES=30
 NODE_ENV=development
 ```
+
+## アニメーションテーマ・カラー規約
+
+テーマの追加・編集時は、以下のルールを厳守すること。
+
+### カラーテンプレートプリセット（`ThemeColors`）の遵守
+
+- すべてのテーマは `packages/client/src/animations/types.ts` で定義された **`ThemeColors` インターフェースの全フィールドを漏れなく実装**すること
+- カラー値は必ず **Tailwind CSS クラス文字列** で指定する（生の HEX/RGB は禁止）
+- コンポーネント側でテーマカラーを使用する際は、`useAnimationTheme()` フックから `colors` を取得してプリセットのフィールドを使う。テーマカラーのハードコードや直接の Tailwind クラス指定は禁止
+
+### `ThemeColors` フィールド一覧（全テーマで必須）
+
+| カテゴリ | フィールド | 用途 |
+|---|---|---|
+| 背景 | `bgGradient`, `cardBg`, `cardBorder` | ページ背景・カード |
+| ボタン | `buttonPrimary`, `buttonPrimaryHover`, `buttonAccent`, `buttonAccentHover`, `buttonDanger`, `buttonGhost` | 各種ボタン |
+| テキスト | `textPrimary`, `textSecondary`, `textAccent`, `labelText` | テキスト色 |
+| 説明 | `explanationBg`, `explanationText` | 説明ボックス |
+| ハイライト | `highlightGradient` | 結果画面等 |
+| フォーム | `inputField`, `inputFocus` | 入力フィールド |
+| サーフェス | `surfaceMuted` | 控えめな背景 |
+| バッジ | `badgeSuccess`, `badgeError`, `badgeWarning`, `badgeMuted` | ステータス表示 |
+| モーダル | `modalBg` | モーダル / ダイアログ背景 |
+| 選択肢 | `choiceIndexBadge` | A/B/C/D バッジ丸 |
+| 参加者 | `participantOnline`, `participantOffline`, `statusOk` | オンライン/オフライン/チェック |
+| チップ | `chipSelected`, `chipDefault` | 選択タグ（AI リクエスト等） |
+| スピナー | `spinner` | ローディングスピナー |
+| プログレス | `progressIndicator` | 進捗表示 |
+| リンク | `linkText` | テキストリンク |
+
+### 既定テーマプリセット（5種）
+
+| テーマ名 | ファイル | カラー基調 |
+|---|---|---|
+| `subtle` | `themes/subtle.ts` | スレート / インディゴ（デフォルト） |
+| `fun` | `themes/fun.ts` | アンバー / オレンジ |
+| `party` | `themes/party.ts` | フクシア / ピンク / バイオレット |
+| `cyber` | `themes/cyber.ts` | ダークシアン / パープル（ダークモード） |
+| `sakura` | `themes/sakura.ts` | ピンク / ローズ（桜） |
+
+### テーマ編集・追加時のチェックリスト
+
+1. `ThemeColors` の **全33フィールド** を定義しているか確認する
+2. `AnimationThemeConfig` の `variants`（10種）を全て定義しているか確認する
+3. 新規テーマ追加時は `themes/index.ts` の `themeMap` と shared パッケージの `AnimationThemeName` 型に追加する
+4. コンポーネントで色を使う場合は `useAnimationTheme().colors.xxxxx` から取得する — Tailwind クラスの直書き禁止
+5. `badgeSuccess` / `badgeError` / `badgeWarning` / `badgeMuted` はセマンティックカラーのため、全テーマで統一した値を使用する
+
+### アニメーション構成
+
+- テーマ設定は `packages/client/src/animations/themes/` に1テーマ1ファイルで配置
+- エフェクトコンポーネントは `packages/client/src/animations/effects/` に配置
+- テーマ適用は `AnimationThemeProvider` が自動で行う（`rootClassName` + `ambient` エフェクト）
+- `useAnimationTheme()` フック経由で `colors` / `variants` / `effects` を取得する
 
 ## 注意事項
 

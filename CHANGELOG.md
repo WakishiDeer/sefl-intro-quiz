@@ -7,7 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 
 ## [Unreleased]
 
+### Changed
+
+- **スピーチタイム（interviewing フェーズ）の自動遷移を廃止**: 60秒タイマー満了による自動的なフェーズ遷移を削除し、Host が手動で「次の問題へ」を押すまでスピーチタイムが継続するように変更
+
 ### Added
+
+- **fun テーマ専用エフェクト2種を新規作成**:
+  - `PopBubbles` — カラフルな半透明バブルがふわふわ上昇する常時背景アニメーション（Canvas ベース）
+  - `PopCelebration` — 正解時にカラフルな星・丸が画面中央から放射状に飛び散り、「GREAT!」「NICE!」等のポップなテキストが表示される全画面祝福演出（Canvas ベース）
+- **スピーチタイム（interviewing フェーズ）にスポットライト演出を追加**: 暗転 → スポットライト照射 → 名前ドーン → 絵文字飛散、というステージ登壇風のイントロアニメーション
+  - `SpotlightEffect` コンポーネント — 暗幕 + スポットライト + 名前テキスト + デコ絵文字飛散のフルスクリーン演出
+  - 対象者の名前がスポットライトの中心でグロー付きで大きく表示される
+  - `effects.onInterview` をテーマ型 (`AnimationThemeConfig`) に追加（対象者名を引数で受け取る）
+  - 全 5 テーマにテーマ特性に合わせたスポットライト・デコ設定を実装:
+    - **subtle**: 白い拡散光 + ✨💬 （控えめ 8 個）
+    - **fun**: ライムグリーンのスポット + ⭐🌟🎵🤩 （14 個）
+    - **party**: マゼンタのビーム光線 + 🎉🎊💃🕺🪩🔥 （18 個）
+    - **cyber**: シアンのハードスポット + ⚡💎🔮▶◆ （10 個）
+    - **sakura**: ピンクの柔らかなスポット + 🌸💮🪷✿ （15 個）
+- **ThemeColors に 10 フィールドを追加**: テーマカラーの網羅性を向上（23 → 33 フィールド）
+  - `modalBg` — モーダル / ダイアログ背景
+  - `choiceIndexBadge` — 選択肢 A/B/C/D バッジ丸の背景色
+  - `participantOnline` / `participantOffline` — 参加者オンライン / オフラインインジケータ
+  - `statusOk` — 成功チェックマーク色
+  - `chipSelected` / `chipDefault` — 選択済み / 未選択チップ（AI リクエストプリセット等）
+  - `spinner` — ローディングスピナー
+  - `progressIndicator` — 進捗表示
+  - `linkText` — テキストリンク色
+  - 全 5 テーマプリセット（subtle / fun / party / cyber / sakura）を対応更新
+
+### Changed
+
+- **fun テーマのカラーパレットをリニューアル**: amber/orange/yellow → lime/emerald/sky のネオポップ配色に変更。他テーマとの差別化を強化
+  - 背景: ライムグリーン → エメラルド → スカイブルーのグラデーション
+  - ボタン: エメラルド（プライマリ）× スカイブルー（アクセント）
+  - テキスト: emerald-900 / sky-600 / lime-600 でカラフルに（黒い文字を排除）
+  - 背景エフェクト: AmbientParticles（浮遊星）→ PopBubbles（カラフルバブル上昇アニメーション）に変更
+  - 正解エフェクト: Sparkles（CSS キラキラ）→ PopCelebration（Canvas 全画面スターバースト + 祝福テキスト）に変更
+  - スポットライト: amber 系 → emerald/lime 系に更新
+- **コンポーネントのハードコードカラーをテーマ化**: 以下のコンポーネントで直書き Tailwind クラスを `useAnimationTheme().colors` 経由に置換
+  - `ChoiceButton` — A/B/C/D バッジ色
+  - `ParticipantList` — オンライン / オフラインドット、チェックマーク
+  - `AIRequestModal` — 全面テーマ化（モーダル背景、スピナー、チップ、進捗表示、ボタン、テキスト、入力フォーム）
+  - `AIRequestResultPanel` — 全面テーマ化（モーダル背景、入力フィールド、ボタン）
+  - `ProfileFieldEditor` — 全面テーマ化（モーダル背景、入力フィールド、ボタン）
+  - `LobbyView` — スピナーのテーマ化
+  - `ResultView` — 「ルームを閉じる」ボタンのテーマ化
+  - `RoomPage` — 接続断バナーのテーマ化
 
 - **各問題の回答結果表示（正解・不正解一覧）**: 各クイズ問題ごとに誰が正解・不正解だったかを表示する機能を追加
   - `ParticipantAnswerResult` / `QuestionResultSummary` 型を shared パッケージに追加

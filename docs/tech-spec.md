@@ -98,8 +98,8 @@
 | `revealing → interviewing` | `quiz:next-question` (Host) かつ「気になる」投票50%以上 | 1分間スピーチタイム開始 |
 | `revealing → playing` | `quiz:next-question` (Host) かつ次の問題あり＆投票50%未満 | 次の問題を開始 |
 | `revealing → finished` | `quiz:next-question` (Host) かつ Q10 の revealing 後＆投票50%未満 | 最終スコア送信 |
-| `interviewing → playing` | 1分タイマー満了 or `quiz:next-question` (Host) かつ次の問題あり | 次の問題を開始 |
-| `interviewing → finished` | 1分タイマー満了 or `quiz:next-question` (Host) かつ Q10 後 | 最終スコア送信 |
+| `interviewing → playing` | `quiz:next-question` (Host) かつ次の問題あり | 次の問題を開始（自動遷移なし） |
+| `interviewing → finished` | `quiz:next-question` (Host) かつ Q10 後 | 最終スコア送信（自動遷移なし） |
 | `any → (破棄)` | `room:close` (Host) or TTL 期限切れ | ルーム削除、全員に通知 |
 
 ### 2.3 コアデータモデル（TypeScript 型定義）
