@@ -15,7 +15,7 @@
 |---|---|
 | Frontend | React 19 + Vite + Tailwind CSS v4 |
 | Backend | Node.js + Express + Socket.IO v4 |
-| AI | Anthropic Claude API (Sonnet 4.5) |
+| AI | Azure OpenAI API (GPT-5.1) |
 | 状態管理 | Zustand (client) / InMemory Map (server) |
 | バリデーション | Zod (shared) |
 | ログ | pino |
@@ -68,7 +68,13 @@ packages/server/src/
 │   ├── InMemoryRoomRepository.test.ts
 │   ├── InMemoryQuizRepository.ts
 │   ├── InMemoryQuizRepository.test.ts
-│   ├── ClaudeQuizGenerator.ts
+│   ├── AzureOpenAIQuizGenerator.ts
+│   ├── AzureOpenAIQuizGenerator.test.ts
+│   ├── AzureOpenAIProfileFieldSuggester.ts
+│   ├── StubQuizGenerator.ts
+│   ├── StubQuizGenerator.test.ts
+│   ├── StubProfileFieldSuggester.ts
+│   ├── StubProfileFieldSuggester.test.ts
 │   └── NodeTimerService.ts
 └── utils/
     ├── roomCode.ts
@@ -142,7 +148,7 @@ interface QuizGenerator {
 }
 
 // ✅ Good: Infrastructure で class implements
-class ClaudeQuizGenerator implements QuizGenerator {
+class AzureOpenAIQuizGenerator implements QuizGenerator {
   async generate(participants: ParticipantProfile[]): Promise<Question[]> { ... }
 }
 ```
@@ -233,15 +239,17 @@ describe("RoomAggregate", () => {
 ## Room Phase 遷移
 
 ```
-lobby → generating → playing ⇄ revealing → finished
+lobby → generating → playing ⇄ revealing ⇄ interviewing → finished
 ```
 
 - Host のみがフェーズ遷移をトリガーできる
 - `playing → revealing` はサーバが自動実行（全員回答 or タイムアウト）
+- `revealing → interviewing` は Host が `quiz:next-question` を押した時、「気になる」投票が50%以上なら自動遷移
+- `interviewing → playing/finished` は1分タイマー満了で自動、または Host が `quiz:next-question` で手動スキップ
 
 ## Socket.IO イベント
 
-- Client→Server: 8 イベント（`room:create`, `room:join`, `room:leave`, `profile:submit`, `quiz:generate`, `quiz:next-question`, `question:answer`, `room:close`）
+- Client→Server: 9 イベント（`room:create`, `room:join`, `room:leave`, `profile:submit`, `quiz:generate`, `quiz:next-question`, `quiz:vote-curious`, `question:answer`, `room:close`）
 - Server→Client: 16+ イベント
 - 詳細は `docs/api-events.md` を参照
 
@@ -283,7 +291,10 @@ lobby → generating → playing ⇄ revealing → finished
 ## 環境変数
 
 ```env
-ANTHROPIC_API_KEY=sk-ant-... # 必須
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
+AZURE_OPENAI_API_KEY=...     # 必須（AI使用時）
+AZURE_OPENAI_DEPLOYMENT=gpt-51
+AI_PROVIDER=azure-openai      # azure-openai / no-ai
 PORT=3001
 CLIENT_URL=http://localhost:5173
 LOG_LEVEL=info
@@ -297,5 +308,5 @@ NODE_ENV=development
 
 - MVP はインメモリストア（サーバ再起動でデータ消失）
 - DB なし — 将来 Redis 移行パスあり（Socket.IO Redis Adapter + Repository 差し替え）
-- Anthropic API Key は `.env` に格納し、Git にコミットしない
+- Azure OpenAI API Key は `.env` に格納し、Git にコミットしない
 - `timerHandle` はドメインモデル外（`NodeTimerService` で管理）

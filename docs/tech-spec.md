@@ -76,17 +76,17 @@
 ### 2.2 状態遷移図
 
 ```
-                    ┌──────────────────────────────────────┐
-                    │                                      │
-  room:create       │    quiz:generate       quiz:next     │  quiz:next (Q10後)
- ─────────→ [lobby] ──→ [generating] ──→ [playing] ⇄ [revealing] ──→ [finished]
-                    │                       ↑                          │
-                    │                       │  quiz:next-question      │
-                    │                       └──────────────────────────│
-                    │                                                  │
-                    └──── room:close ──────────────────────→ (破棄)    │
-                                                                       │
-                                               room:close ←───────────┘
+                    ┌──────────────────────────────────────────────────────────┐
+                    │                                                          │
+  room:create       │    quiz:generate       quiz:next                         │  quiz:next (Q10後)
+ ─────────→ [lobby] ──→ [generating] ──→ [playing] ⇄ [revealing] ⇄ [interviewing] ──→ [finished]
+                    │                       ↑              │                   │
+                    │                       │  quiz:next    │   quiz:next       │
+                    │                       └──────────────────────────────────│
+                    │                                                          │
+                    └──── room:close ──────────────────────────────→ (破棄)    │
+                                                                               │
+                                                       room:close ←───────────┘
 ```
 
 | 遷移 | トリガー | サーバ側の処理 |
@@ -95,8 +95,11 @@
 | `lobby → generating` | `quiz:generate` (Host) | AI API 呼び出し開始 |
 | `generating → playing` | AI 生成完了 + 最初の `quiz:next-question` | `quiz:ready` 送信後、Host の `quiz:next-question` で `playing` に遷移 |
 | `playing → revealing` | 全員回答済み or タイムアウト | 正解情報ブロードキャスト |
-| `revealing → playing` | `quiz:next-question` (Host) かつ次の問題あり | 次の問題を開始 |
-| `revealing → finished` | `quiz:next-question` (Host) かつ Q10 の revealing 後 | 最終スコア送信 |
+| `revealing → interviewing` | `quiz:next-question` (Host) かつ「気になる」投票50%以上 | 1分間スピーチタイム開始 |
+| `revealing → playing` | `quiz:next-question` (Host) かつ次の問題あり＆投票50%未満 | 次の問題を開始 |
+| `revealing → finished` | `quiz:next-question` (Host) かつ Q10 の revealing 後＆投票50%未満 | 最終スコア送信 |
+| `interviewing → playing` | 1分タイマー満了 or `quiz:next-question` (Host) かつ次の問題あり | 次の問題を開始 |
+| `interviewing → finished` | 1分タイマー満了 or `quiz:next-question` (Host) かつ Q10 後 | 最終スコア送信 |
 | `any → (破棄)` | `room:close` (Host) or TTL 期限切れ | ルーム削除、全員に通知 |
 
 ### 2.3 コアデータモデル（TypeScript 型定義）

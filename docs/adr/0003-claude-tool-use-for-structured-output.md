@@ -2,7 +2,7 @@
 
 ## Status
 
-accepted
+superseded (AI プロバイダーを Azure OpenAI に統一。function calling で同等の構造化出力を実現)
 
 ## Context
 

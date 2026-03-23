@@ -18,6 +18,7 @@
 | `quiz:generate` | Host | `{}` | クイズ生成トリガー |
 | `quiz:next-question` | Host | `{}` | 次の問題へ進む |
 | `question:answer` | Participant | `{ questionIndex: number, choiceIndex: number }` | 回答送信 |
+| `quiz:vote-curious` | Participant | `{ questionIndex: number }` | 「気になる」投票（revealing フェーズのみ） |
 | `room:close` | Host | `{}` | ルームを閉じる |
 | `room:back-to-lobby` | Host | `{}` | クイズ終了後にロビーに戻る |
 | `room:list-subscribe` | Any | `{}` | ルーム一覧のリアルタイム購読開始 |
@@ -43,6 +44,7 @@
 | `question:start` | Room | `QuestionStartPayload` | 問題出題開始 |
 | `question:answer-count` | Room | `{ answeredCount: number, totalCount: number }` | 回答状況更新 |
 | `question:reveal` | Room | `QuestionRevealPayload` | 正解発表 |
+| `interview:start` | Room | `InterviewStartPayload` | スピーチタイム開始（気になる投票50%以上で自動発動） |
 | `quiz:finished` | Room | `QuizFinishedPayload` | 全問終了・最終結果 |
 | `room:list` | Subscribers | `RoomListPayload` | ルーム一覧（リアルタイム更新） |
 | `room:nickname-result` | Sender | `{ available: boolean, roomCode: string, nickname: string }` | ニックネーム重複チェック結果 |

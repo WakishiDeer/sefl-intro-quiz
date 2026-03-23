@@ -2,7 +2,7 @@
 
 ## Status
 
-accepted
+superseded (Azure OpenAI に統一。Claude サポートは廃止済み)
 
 ## Context
 
