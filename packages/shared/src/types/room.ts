@@ -14,7 +14,23 @@ export type RoomPhase =
     | "generating" // クイズ生成中
     | "playing" // クイズ進行中
     | "revealing" // 正解発表中
+    | "interviewing" // インタビュータイム（正解発表後、対象者への質問タイム）
     | "finished"; // 全問終了
+
+// ============================================================
+// AnimationThemeName — アニメーションテーマ
+// ============================================================
+
+/**
+ * ルームに適用するアニメーションテーマ。
+ * ホストがロビーで選択可能。参加者全員に統一適用される。
+ */
+export type AnimationThemeName =
+    | "subtle"  // 控えめ（デフォルト）
+    | "fun"     // 程よく楽しい
+    | "cyber"   // サイバー / テック感
+    | "party"   // ワイワイ / パーティー
+    | "sakura"; // 桜 / 春
 
 // ============================================================
 // Participant — 参加者エンティティ（DTO）
@@ -71,6 +87,8 @@ export interface Room {
      * 1〜10項目。デフォルトは DEFAULT_PROFILE_FIELDS。
      */
     profileFields: ProfileFieldDefinition[];
+    /** ルームに適用するアニメーションテーマ */
+    animationTheme: AnimationThemeName;
     /** Unix timestamp (ms) */
     createdAt: number;
     /** Unix timestamp (ms) — TTL 判定用 */

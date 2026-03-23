@@ -6,14 +6,19 @@ export type { Profile, ProfileFieldDefinition } from "./profile.js";
 
 export type {
     RoomPhase,
+    AnimationThemeName,
     Participant,
     Room,
 } from "./room.js";
 
 export type {
+    QuestionType,
     Question,
     Answer,
     ScoreEntry,
+    QuizHighlight,
+    ParticipantAnswerResult,
+    QuestionResultSummary,
     Quiz,
 } from "./quiz.js";
 
@@ -48,6 +53,9 @@ export type {
     NicknameResultPayload,
     UpdateFieldsPayload,
     FieldsUpdatedPayload,
+    InterviewSpeechInfo,
+    InterviewStartPayload,
+    VoteCuriousPayload,
     AIRequestStartedPayload,
     AIRequestSubmitPayload,
     AIRequestFinalizePayload,

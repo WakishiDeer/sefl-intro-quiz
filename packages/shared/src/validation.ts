@@ -19,6 +19,9 @@ import {
     MAX_PROFILE_FIELD_LABEL_LENGTH,
     MAX_PROFILE_FIELD_PLACEHOLDER_LENGTH,
     AI_REQUEST_MAX_FREE_TEXT,
+    MAX_QUESTIONS,
+    MIN_QUESTIONS,
+    ANIMATION_THEMES,
 } from "./constants.js";
 import type { ProfileFieldDefinition } from "./types/profile.js";
 
@@ -164,8 +167,22 @@ export const CheckNicknameSchema = z.object({
 
 /** question:answer ペイロード */
 export const SubmitAnswerSchema = z.object({
-    questionIndex: z.number().int().min(0).max(9),
+    questionIndex: z.number().int().min(0).max(MAX_QUESTIONS - 1),
     choiceIndex: z.number().int().min(0).max(MAX_CHOICES - 1),
+});
+
+/** quiz:vote-curious ペイロード */
+export const VoteCuriousSchema = z.object({
+    questionIndex: z.number().int().min(0).max(MAX_QUESTIONS - 1),
+});
+
+// ============================================================
+// アニメーションテーマ
+// ============================================================
+
+/** room:set-theme ペイロード（ホストがテーマを変更） */
+export const SetThemeSchema = z.object({
+    theme: z.enum(ANIMATION_THEMES as unknown as [string, ...string[]]),
 });
 
 // ============================================================
@@ -195,6 +212,7 @@ export const AIRequestAdoptSchema = z.object({
 
 /** AI が返す1問分のスキーマ */
 export const AIQuestionSchema = z.object({
+    questionType: z.enum(["four-choice", "yes-no"]),
     questionText: z.string().min(1).max(500),
     choices: z.array(z.string().min(1)).min(2).max(MAX_CHOICES),
     correctIndex: z.number().int().min(0).max(MAX_CHOICES - 1),
@@ -202,31 +220,43 @@ export const AIQuestionSchema = z.object({
     subjectNickname: z.string().min(1),
 });
 
-/** AI が返す全問のスキーマ */
+/** AI が返す全問のスキーマ（デフォルト: MIN_QUESTIONS〜MAX_QUESTIONS問の範囲を許容） */
 export const AIOutputSchema = z.object({
-    questions: z.array(AIQuestionSchema).length(10),
+    questions: z.array(AIQuestionSchema).min(MIN_QUESTIONS).max(MAX_QUESTIONS),
 });
 
+/**
+ * 指定された問題数で AI 出力をバリデーションする Zod スキーマを生成する。
+ * 動的な問題数に対応するため、QuizGenerator 実装で使用する。
+ *
+ * @param totalQuestions - 期待される総問題数
+ */
+export function createAIOutputSchema(totalQuestions: number) {
+    return z.object({
+        questions: z.array(AIQuestionSchema).length(totalQuestions),
+    });
+}
+
 // ============================================================
-// AI 出力 JSON Schema（Claude tool_use 用）
+// AI 出力 JSON Schema（tool_use / function calling 用）
 // Zod スキーマから自動生成し、単一の定義源（Single Source of Truth）を維持する。
 // スキーマ変更時は上の Zod 定義のみを修正すれば JSON Schema も自動追従する。
 // ============================================================
 
 /**
- * Claude API の tool_use で使用する input_schema。
+ * AI API の function calling で使用する JSON Schema。
  * AIOutputSchema (Zod) から自動生成された JSON Schema オブジェクト。
  *
  * 注意: `name` オプションを指定すると definitions ラッパーで包まれ、
  * トップレベルに `type: "object"` が存在しなくなる。
- * Anthropic API は `input_schema.type` を必須とするため、
+ * API は `type` を必須とするため、
  * `name` を指定せずフラットな JSON Schema を生成する。
  */
 const rawJsonSchema = zodToJsonSchema(AIOutputSchema, {
     $refStrategy: "none",
 }) as Record<string, unknown>;
 
-// Anthropic API は JSON Schema のメタキーを受け付けないため除去
+// API は JSON Schema のメタキーを受け付けないため除去
 delete rawJsonSchema.$schema;
 
 export const AIOutputJsonSchema = rawJsonSchema;

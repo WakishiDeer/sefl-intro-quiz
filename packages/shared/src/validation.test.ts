@@ -18,6 +18,8 @@ import {
     UpdateFieldsSchema,
     AIRequestSubmitSchema,
     AIRequestAdoptSchema,
+    createAIOutputSchema,
+    SetThemeSchema,
 } from "./validation.js";
 import { DEFAULT_PROFILE_FIELDS, MAX_PROFILE_FIELDS } from "./constants.js";
 import type { ProfileFieldDefinition } from "./types/profile.js";
@@ -213,6 +215,11 @@ describe("SubmitAnswerSchema", () => {
             SubmitAnswerSchema.safeParse({ questionIndex: 9, choiceIndex: 3 })
                 .success,
         ).toBe(true);
+        // MAX_QUESTIONS - 1 まで許容される
+        expect(
+            SubmitAnswerSchema.safeParse({ questionIndex: 19, choiceIndex: 0 })
+                .success,
+        ).toBe(true);
     });
 
     it("範囲外の questionIndex を拒否する", () => {
@@ -220,8 +227,9 @@ describe("SubmitAnswerSchema", () => {
             SubmitAnswerSchema.safeParse({ questionIndex: -1, choiceIndex: 0 })
                 .success,
         ).toBe(false);
+        // MAX_QUESTIONS (20) は範囲外
         expect(
-            SubmitAnswerSchema.safeParse({ questionIndex: 10, choiceIndex: 0 })
+            SubmitAnswerSchema.safeParse({ questionIndex: 20, choiceIndex: 0 })
                 .success,
         ).toBe(false);
     });
@@ -243,8 +251,9 @@ describe("SubmitAnswerSchema", () => {
 // ============================================================
 
 describe("AIQuestionSchema", () => {
-    it("有効な AI 出力問題を受け入れる", () => {
+    it("有効な AI 出力問題を受け入れる（4択）", () => {
         const result = AIQuestionSchema.safeParse({
+            questionType: "four-choice",
             questionText: "Who likes sushi?",
             choices: ["Alice", "Bob", "Carol", "Dave"],
             correctIndex: 0,
@@ -254,10 +263,46 @@ describe("AIQuestionSchema", () => {
         expect(result.success).toBe(true);
     });
 
+    it("有効な AI 出力問題を受け入れる（⭕❌）", () => {
+        const result = AIQuestionSchema.safeParse({
+            questionType: "yes-no",
+            questionText: "Aliceさんの出身地は東京である。⭕か❌か？",
+            choices: ["⭕ はい", "❌ いいえ"],
+            correctIndex: 0,
+            explanation: "Aliceさんの出身地は東京です",
+            subjectNickname: "Alice",
+        });
+        expect(result.success).toBe(true);
+    });
+
     it("選択肢が不足している場合を拒否する", () => {
         const result = AIQuestionSchema.safeParse({
+            questionType: "four-choice",
             questionText: "Question?",
             choices: ["A"],
+            correctIndex: 0,
+            explanation: "Because",
+            subjectNickname: "Alice",
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it("questionType がない場合を拒否する", () => {
+        const result = AIQuestionSchema.safeParse({
+            questionText: "Question?",
+            choices: ["A", "B", "C", "D"],
+            correctIndex: 0,
+            explanation: "Because",
+            subjectNickname: "Alice",
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it("不正な questionType を拒否する", () => {
+        const result = AIQuestionSchema.safeParse({
+            questionType: "multiple",
+            questionText: "Question?",
+            choices: ["A", "B", "C", "D"],
             correctIndex: 0,
             explanation: "Because",
             subjectNickname: "Alice",
@@ -267,7 +312,7 @@ describe("AIQuestionSchema", () => {
 });
 
 describe("AIOutputJsonSchema", () => {
-    it("トップレベルに type: 'object' が存在する（Claude API 必須）", () => {
+    it("トップレベルに type: 'object' が存在する（AI API 必須）", () => {
         expect(AIOutputJsonSchema).toHaveProperty("type", "object");
     });
 
@@ -285,28 +330,71 @@ describe("AIOutputJsonSchema", () => {
 });
 
 describe("AIOutputSchema", () => {
-    it("10問ちょうどの出力を受け入れる", () => {
-        const questions = Array.from({ length: 10 }, (_, i) => ({
+    it("5問以上20問以下の出力を受け入れる", () => {
+        for (const count of [5, 10, 15, 20]) {
+            const questions = Array.from({ length: count }, (_, i) => ({
+                questionType: i < 6 ? "four-choice" : "yes-no",
+                questionText: `Q${i}?`,
+                choices: i < 6 ? ["A", "B", "C", "D"] : ["⭕ はい", "❌ いいえ"],
+                correctIndex: 0,
+                explanation: `Because ${i}`,
+                subjectNickname: `User${i}`,
+            }));
+            const result = AIOutputSchema.safeParse({ questions });
+            expect(result.success).toBe(true);
+        }
+    });
+
+    it("4問以下または21問以上を拒否する", () => {
+        for (const count of [4, 21]) {
+            const questions = Array.from({ length: count }, (_, i) => ({
+                questionType: "four-choice",
+                questionText: `Q${i}?`,
+                choices: ["A", "B", "C", "D"],
+                correctIndex: 0,
+                explanation: `Because ${i}`,
+                subjectNickname: `User${i}`,
+            }));
+            const result = AIOutputSchema.safeParse({ questions });
+            expect(result.success).toBe(false);
+        }
+    });
+});
+
+describe("createAIOutputSchema", () => {
+    function makeQuestions(count: number) {
+        return Array.from({ length: count }, (_, i) => ({
+            questionType: i % 2 === 0 ? "four-choice" : "yes-no",
             questionText: `Q${i}?`,
-            choices: ["A", "B", "C", "D"],
+            choices: i % 2 === 0 ? ["A", "B", "C", "D"] : ["⭕ はい", "❌ いいえ"],
             correctIndex: 0,
             explanation: `Because ${i}`,
             subjectNickname: `User${i}`,
         }));
-        const result = AIOutputSchema.safeParse({ questions });
+    }
+
+    it("指定された問題数ちょうどを受け入れる", () => {
+        const schema = createAIOutputSchema(7);
+        const result = schema.safeParse({ questions: makeQuestions(7) });
         expect(result.success).toBe(true);
     });
 
-    it("10問以外を拒否する", () => {
-        const questions = Array.from({ length: 5 }, (_, i) => ({
-            questionText: `Q${i}?`,
-            choices: ["A", "B"],
-            correctIndex: 0,
-            explanation: `Because ${i}`,
-            subjectNickname: `User${i}`,
-        }));
-        const result = AIOutputSchema.safeParse({ questions });
-        expect(result.success).toBe(false);
+    it("指定された問題数と異なる場合を拒否する", () => {
+        const schema = createAIOutputSchema(7);
+        expect(schema.safeParse({ questions: makeQuestions(6) }).success).toBe(false);
+        expect(schema.safeParse({ questions: makeQuestions(8) }).success).toBe(false);
+    });
+
+    it("5問のスキーマが正しく動作する", () => {
+        const schema = createAIOutputSchema(5);
+        expect(schema.safeParse({ questions: makeQuestions(5) }).success).toBe(true);
+        expect(schema.safeParse({ questions: makeQuestions(10) }).success).toBe(false);
+    });
+
+    it("20問のスキーマが正しく動作する", () => {
+        const schema = createAIOutputSchema(20);
+        expect(schema.safeParse({ questions: makeQuestions(20) }).success).toBe(true);
+        expect(schema.safeParse({ questions: makeQuestions(19) }).success).toBe(false);
     });
 });
 
@@ -526,6 +614,35 @@ describe("AIRequestAdoptSchema", () => {
 
     it("空の配列を拒否する", () => {
         const result = AIRequestAdoptSchema.safeParse({ fields: [] });
+        expect(result.success).toBe(false);
+    });
+});
+
+// ============================================================
+// SetThemeSchema
+// ============================================================
+
+describe("SetThemeSchema", () => {
+    it("有効なテーマ名を受け付ける", () => {
+        const themes = ["subtle", "fun", "cyber", "party", "sakura"];
+        for (const theme of themes) {
+            const result = SetThemeSchema.safeParse({ theme });
+            expect(result.success).toBe(true);
+        }
+    });
+
+    it("無効なテーマ名を拒否する", () => {
+        const result = SetThemeSchema.safeParse({ theme: "invalid-theme" });
+        expect(result.success).toBe(false);
+    });
+
+    it("空文字列を拒否する", () => {
+        const result = SetThemeSchema.safeParse({ theme: "" });
+        expect(result.success).toBe(false);
+    });
+
+    it("theme フィールドが欠けている場合拒否する", () => {
+        const result = SetThemeSchema.safeParse({});
         expect(result.success).toBe(false);
     });
 });

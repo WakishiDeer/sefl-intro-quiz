@@ -5,9 +5,9 @@
  * RoomStateSync はルーム参加時・再接続時にクライアントへ送信する全状態スナップショット。
  */
 
-import type { RoomPhase } from "./room.js";
+import type { RoomPhase, AnimationThemeName } from "./room.js";
 import type { ProfileFieldDefinition } from "./profile.js";
-import type { ScoreEntry } from "./quiz.js";
+import type { ScoreEntry, QuizHighlight, ParticipantAnswerResult, QuestionResultSummary } from "./quiz.js";
 
 // ============================================================
 // RoomStateSync — 全状態スナップショット
@@ -23,16 +23,22 @@ export interface RoomStateSync {
         phase: RoomPhase;
         /** -1 = 未開始 */
         currentQuestionIndex: number;
-        /** 固定値 10 */
+        /** 動的に計算された総問題数（0 = 未生成） */
         totalQuestions: number;
         /** ホストがカスタマイズしたプロフィール入力項目 */
         profileFields: ProfileFieldDefinition[];
+        /** アニメーションテーマ */
+        animationTheme: AnimationThemeName;
     };
     participants: ParticipantInfo[];
-    /** playing/revealing 中のみ */
+    /** playing/revealing/interviewing 中のみ */
     currentQuestion?: CurrentQuestionInfo;
-    /** revealing 中のみ */
+    /** revealing/interviewing 中のみ */
     revealedAnswer?: RevealedAnswerInfo;
+    /** revealing 中: 自分が「気になる」投票済みか */
+    hasVotedCurious?: boolean;
+    /** interviewing 中のみ: スピーチ対象者情報 */
+    interviewSpeech?: InterviewSpeechInfo;
     /** リクエストした参加者自身の情報 */
     self: SelfInfo;
 }
@@ -55,6 +61,8 @@ export interface ParticipantInfo {
 /** 出題中の問題情報（正解は含まない） */
 export interface CurrentQuestionInfo {
     index: number;
+    /** 問題形式（4択 or ⭕❌2択） */
+    questionType: "four-choice" | "yes-no";
     text: string;
     choices: string[];
     timerEndsAt: number;
@@ -69,6 +77,8 @@ export interface RevealedAnswerInfo {
     correctIndex: number;
     explanation: string;
     scores: ScoreEntry[];
+    /** 各参加者の回答結果 */
+    participantResults: ParticipantAnswerResult[];
 }
 
 /** 自分自身の情報 */
@@ -77,6 +87,33 @@ export interface SelfInfo {
     nickname: string;
     isHost: boolean;
     joinedAtQuestion: number;
+    /** 送信済みプロフィール（未送信の場合 null） */
+    profile: Record<string, string> | null;
+}
+
+// ============================================================
+// Interview — インタビュータイム（気になる投票 → スピーチ）
+// ============================================================
+
+/** インタビュースピーチ情報（クライアント表示用） */
+export interface InterviewSpeechInfo {
+    /** スピーチ対象者のニックネーム */
+    subjectNickname: string;
+    /** スピーチ終了時刻 (Unix timestamp ms) */
+    speechEndsAt: number;
+}
+
+/** interview:start (S2C) ペイロード */
+export interface InterviewStartPayload {
+    /** スピーチ対象者のニックネーム */
+    subjectNickname: string;
+    /** スピーチ終了時刻 (Unix timestamp ms) */
+    speechEndsAt: number;
+}
+
+/** quiz:vote-curious (C2S) ペイロード */
+export interface VoteCuriousPayload {
+    questionIndex: number;
 }
 
 // ============================================================
@@ -145,6 +182,8 @@ export interface QuizGenerateFailedPayload {
 /** question:start ペイロード */
 export interface QuestionStartPayload {
     index: number;
+    /** 問題形式（4択 or ⭕❌2択） */
+    questionType: "four-choice" | "yes-no";
     text: string;
     choices: string[];
     timerEndsAt: number;
@@ -165,11 +204,17 @@ export interface QuestionRevealPayload {
     correctIndex: number;
     explanation: string;
     scores: ScoreEntry[];
+    /** 各参加者の回答結果（正解・不正解・タイムアウト・不参加） */
+    participantResults: ParticipantAnswerResult[];
 }
 
 /** quiz:finished ペイロード */
 export interface QuizFinishedPayload {
     finalScores: ScoreEntry[];
+    /** クイズハイライト（結果画面に表示するトピック） */
+    highlights: QuizHighlight[];
+    /** 全問題の回答結果サマリー */
+    questionResults: QuestionResultSummary[];
 }
 
 /** room:error ペイロード */
@@ -273,6 +318,8 @@ export interface AIRequestStartedPayload {
     message: string;
     /** 受付終了時刻 (Unix timestamp ms) */
     expiresAt: number;
+    /** リクエスト対象の参加者数（接続中の参加者数） */
+    totalParticipants: number;
 }
 
 /** ai-request:submit (C2S) ペイロード — 参加者のリクエスト投稿 */
@@ -302,7 +349,9 @@ export interface AIRequestAdoptPayload {
     fields: ProfileFieldDefinition[];
 }
 
-/** ai-request:cancelled (S2C) ペイロード — ホストが AI リクエストをキャンセル */
+/** ai-request:cancelled (S2C) ペイロード — AI リクエストが終了したことを通知 */
 export interface AIRequestCancelledPayload {
     message: string;
+    /** 終了理由。cancelled = ホストがキャンセル、adopted = ホストが採用、discarded = ホストが破棄 */
+    reason: "cancelled" | "adopted" | "discarded";
 }

@@ -22,11 +22,15 @@ export const C2S_EVENTS = {
     QUIZ_GENERATE: "quiz:generate",
     QUIZ_NEXT_QUESTION: "quiz:next-question",
     QUESTION_ANSWER: "question:answer",
+    QUIZ_VOTE_CURIOUS: "quiz:vote-curious",
     AI_REQUEST_START: "ai-request:start",
     AI_REQUEST_SUBMIT: "ai-request:submit",
     AI_REQUEST_FINALIZE: "ai-request:finalize",
     AI_REQUEST_ADOPT: "ai-request:adopt",
     AI_REQUEST_CANCEL: "ai-request:cancel",
+    AI_REQUEST_DISCARD: "ai-request:discard",
+    AI_REQUEST_DISMISS: "ai-request:dismiss",
+    ROOM_SET_THEME: "room:set-theme",
 } as const;
 
 // ============================================================
@@ -53,11 +57,13 @@ export const S2C_EVENTS = {
     QUESTION_ANSWER_COUNT: "question:answer-count",
     QUESTION_REVEAL: "question:reveal",
     QUIZ_FINISHED: "quiz:finished",
+    INTERVIEW_START: "interview:start",
     AI_REQUEST_STARTED: "ai-request:started",
     AI_REQUEST_STATUS: "ai-request:status",
     AI_REQUEST_RESULT: "ai-request:result",
     AI_REQUEST_CANCELLED: "ai-request:cancelled",
     AI_REQUEST_GENERATING: "ai-request:generating",
+    ROOM_THEME_CHANGED: "room:theme-changed",
 } as const;
 
 // ============================================================
