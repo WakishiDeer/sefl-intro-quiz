@@ -123,7 +123,7 @@ export const useQuizStore = create<QuizState>((set) => ({
     setInterview: (payload) =>
         set({
             interviewSpeech: payload,
-            timerEndsAt: payload.speechEndsAt,
+            timerEndsAt: null,
         }),
 
     setFinished: (finalScores, highlights, questionResults) =>

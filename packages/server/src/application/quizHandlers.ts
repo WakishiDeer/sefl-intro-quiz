@@ -251,10 +251,7 @@ export function registerQuizHandlers(
                     };
                     io.to(session.roomCode).emit(S2C_EVENTS.INTERVIEW_START, payload);
 
-                    // スピーチタイマー: 1分後に自動で次の問題へ
-                    timerService.schedule(session.roomCode, INTERVIEW_SPEECH_DURATION_MS, () => {
-                        advanceFromInterview(io, session.roomCode, roomRepo, quizRepo, timerService);
-                    });
+                    // スピーチタイムは Host が手動で次へ進める（自動遷移なし）
 
                     logger.info(
                         { roomCode: session.roomCode, subjectNickname },
@@ -267,8 +264,7 @@ export function registerQuizHandlers(
                     advanceToNextQuestion(io, session.roomCode, roomAgg, quizAgg, roomRepo, quizRepo, timerService, room);
                 }
             } else if (roomAgg.phase === "interviewing") {
-                // スピーチタイム中 → ホストが手動スキップ → 次の問題 or 終了
-                timerService.cancel(session.roomCode);
+                // スピーチタイム中 → ホストが手動で次の問題 or 終了
                 advanceFromInterview(io, session.roomCode, roomRepo, quizRepo, timerService);
             } else {
                 socket.emit(S2C_EVENTS.ROOM_ERROR, {
