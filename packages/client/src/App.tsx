@@ -7,6 +7,7 @@
 import { Routes, Route } from "react-router";
 import { useSocket } from "./hooks/useSocket.js";
 import { Toast } from "./components/Toast.js";
+import { AnimationThemeProvider } from "./animations/AnimationThemeProvider.js";
 import { TopPage } from "./pages/TopPage.js";
 import { CreateRoomPage } from "./pages/CreateRoomPage.js";
 import { JoinRoomPage } from "./pages/JoinRoomPage.js";
@@ -17,7 +18,7 @@ export function App() {
   useSocket();
 
   return (
-    <>
+    <AnimationThemeProvider>
       <Toast />
       <Routes>
         <Route path="/" element={<TopPage />} />
@@ -26,6 +27,6 @@ export function App() {
         <Route path="/join/:roomCode" element={<JoinRoomPage />} />
         <Route path="/room/:roomCode" element={<RoomPage />} />
       </Routes>
-    </>
+    </AnimationThemeProvider>
   );
 }

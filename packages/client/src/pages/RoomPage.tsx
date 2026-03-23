@@ -11,8 +11,10 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Navigate } from "react-router";
+import { AnimatePresence, motion } from "framer-motion";
 import { useRoomStore } from "../stores/useRoomStore";
 import { useQuizStore } from "../stores/useQuizStore";
+import { useAnimationTheme } from "../animations/useAnimationTheme";
 import { socket } from "../lib/socket";
 import { loadSession, clearSession, getOrCreateClientId } from "../lib/sessionPersistence";
 import { TabSession, POST_YIELD_DELAY_MS } from "../lib/tabSession";
@@ -41,6 +43,7 @@ export function RoomPage() {
     const phase = useRoomStore((s) => s.phase);
     const storeRoomCode = useRoomStore((s) => s.roomCode);
     const isConnected = useRoomStore((s) => s.isConnected);
+    const theme = useAnimationTheme();
 
     // リロード復帰中フラグ
     const [isReconnecting, setIsReconnecting] = useState(() => {
@@ -264,7 +267,7 @@ export function RoomPage() {
     }
 
     return (
-        <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100">
+        <div className={`min-h-screen bg-linear-to-br ${theme.colors.bgGradient} transition-colors duration-500`}>
             {/* 接続断バナー */}
             {!isConnected && (
                 <div className="bg-amber-500 px-4 py-2 text-center text-sm font-medium text-white">
@@ -272,10 +275,42 @@ export function RoomPage() {
                 </div>
             )}
 
-            {/* フェーズに応じた表示切替 */}
-            {(phase === "lobby" || phase === "generating") && <LobbyView />}
-            {(phase === "playing" || phase === "revealing") && <QuizView />}
-            {phase === "finished" && <ResultView />}
+            {/* フェーズに応じた表示切替（AnimatePresence でトランジション） */}
+            <AnimatePresence mode="wait">
+                {(phase === "lobby" || phase === "generating") && (
+                    <motion.div
+                        key="lobby"
+                        variants={theme.variants.phaseTransition}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                    >
+                        <LobbyView />
+                    </motion.div>
+                )}
+                {(phase === "playing" || phase === "revealing" || phase === "interviewing") && (
+                    <motion.div
+                        key="quiz"
+                        variants={theme.variants.phaseTransition}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                    >
+                        <QuizView />
+                    </motion.div>
+                )}
+                {phase === "finished" && (
+                    <motion.div
+                        key="result"
+                        variants={theme.variants.phaseTransition}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                    >
+                        <ResultView />
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
