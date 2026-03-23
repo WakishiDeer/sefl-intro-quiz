@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: wdp-self-intro-quiz
+metadata:
+    template: azd-init@1.23.11
+infra:
+    provider: bicep
+    path: infra
+services:
+    app:
+        project: .
+        host: containerapp
+        language: ts
+        docker:
+            path: Dockerfile
