@@ -14,17 +14,18 @@ import { useRoomStore } from "../stores/useRoomStore.js";
 export function ProfileForm() {
   const profileFields = useRoomStore((s) => s.profileFields);
   const profileInvalidated = useRoomStore((s) => s.profileInvalidated);
+  const myProfile = useRoomStore((s) => s.myProfile);
 
   const [form, setForm] = useState<Record<string, string>>(() =>
-    buildEmptyForm(profileFields),
+    buildInitialForm(profileFields, myProfile),
   );
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState(() => myProfile !== null);
   const [error, setError] = useState<string | null>(null);
 
   // プロフィール項目が変更された時にフォームをリセット
   useEffect(() => {
-    setForm(buildEmptyForm(profileFields));
     if (profileInvalidated) {
+      setForm(buildEmptyForm(profileFields));
       setSubmitted(false);
       setError(null);
       useRoomStore.getState().clearProfileInvalidated();
@@ -62,6 +63,7 @@ export function ProfileForm() {
 
     socket.emit(C2S_EVENTS.PROFILE_SUBMIT, { profile: form });
     setSubmitted(true);
+    useRoomStore.getState().setMyProfile(form);
   };
 
   if (submitted) {
@@ -111,6 +113,18 @@ function buildEmptyForm(fields: ProfileFieldDefinition[]): Record<string, string
   const form: Record<string, string> = {};
   for (const field of fields) {
     form[field.id] = "";
+  }
+  return form;
+}
+
+/** 既存プロフィールがあれば値を復元し、なければ空のフォーム値を生成する */
+function buildInitialForm(
+  fields: ProfileFieldDefinition[],
+  existingProfile: Record<string, string> | null,
+): Record<string, string> {
+  const form: Record<string, string> = {};
+  for (const field of fields) {
+    form[field.id] = existingProfile?.[field.id] ?? "";
   }
   return form;
 }

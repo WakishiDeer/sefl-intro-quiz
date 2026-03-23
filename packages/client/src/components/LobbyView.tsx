@@ -5,7 +5,7 @@
  * ホストはプロフィール項目の編集、AI リクエストの発動が可能。
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { useQuizStore } from "../stores/useQuizStore.js";
 import { socket } from "../lib/socket.js";
@@ -17,6 +17,8 @@ import { RoomCodeDisplay } from "./RoomCodeDisplay.js";
 import { ProfileFieldEditor } from "./ProfileFieldEditor.js";
 import { AIRequestModal } from "./AIRequestModal.js";
 import { AIRequestResultPanel } from "./AIRequestResultPanel.js";
+import { ThemePicker } from "./ThemePicker.js";
+import { useAnimationTheme } from "../animations/useAnimationTheme.js";
 import { useNavigate } from "react-router";
 
 export function LobbyView() {
@@ -28,8 +30,10 @@ export function LobbyView() {
   const isReady = useQuizStore((s) => s.isReady);
   const generateError = useQuizStore((s) => s.generateError);
   const aiRequestState = useRoomStore((s) => s.aiRequestState);
+  const aiRequestOptedOut = useRoomStore((s) => s.aiRequestOptedOut);
   const participants = useRoomStore((s) => s.participants);
   const navigate = useNavigate();
+  const theme = useAnimationTheme();
 
   const profileSubmittedCount = participants.filter((p) => p.hasProfile).length;
   const canGenerate = profileSubmittedCount >= DEFAULT_MIN_PARTICIPANTS && !isGenerating;
@@ -74,12 +78,22 @@ export function LobbyView() {
     setDismissedAIState(aiRequestState);
   };
 
+  // AI リクエストが idle に戻ったら dismiss 状態をリセット
+  // キャンセル後に再開した2回目のリクエストでモーダルが表示されるようにする
+  useEffect(() => {
+    if (aiRequestState === "idle") {
+      setDismissedAIState(null);
+      setShowAIRequestModal(false);
+    }
+  }, [aiRequestState]);
+
   // AI リクエストモーダルの表示判定:
   // - ホストが明示的に開いた場合
   // - aiRequestState が collecting/generating で、まだ閉じていない or 状態が遷移した
   const shouldShowAIModal =
     aiRequestState !== "idle" &&
     aiRequestState !== "result" &&
+    !aiRequestOptedOut &&
     (showAIRequestModal || dismissedAIState !== aiRequestState);
 
   return (
@@ -88,8 +102,8 @@ export function LobbyView() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* 左: プロフィール入力 */}
-        <div className="rounded-xl bg-white p-5 shadow">
-          <h2 className="mb-4 text-lg font-bold text-gray-800">
+        <div className={`rounded-xl ${theme.colors.cardBg} p-5 shadow`}>
+          <h2 className={`mb-4 text-lg font-bold ${theme.colors.textPrimary}`}>
             自己紹介を入力
           </h2>
           {phase === "lobby" ? (
@@ -107,7 +121,7 @@ export function LobbyView() {
         </div>
 
         {/* 右: 参加者一覧 + ホスト操作 */}
-        <div className="rounded-xl bg-white p-5 shadow">
+        <div className={`rounded-xl ${theme.colors.cardBg} p-5 shadow`}>
           <ParticipantList mode="lobby" currentNickname={nickname} />
 
           {/* Host のみ: 項目編集・AI リクエスト・生成・開始・閉じるボタン */}
@@ -164,7 +178,7 @@ export function LobbyView() {
               {isReady && (
                 <button
                   onClick={handleStartQuiz}
-                  className="w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-700 animate-pulse"
+                  className={`w-full rounded-lg ${theme.colors.buttonPrimary} px-4 py-3 font-semibold text-white transition ${theme.colors.buttonPrimaryHover} animate-pulse`}
                 >
                   🚀 クイズを開始する
                 </button>
@@ -202,6 +216,13 @@ export function LobbyView() {
           </div>
         </div>
       </div>
+
+      {/* アニメーションテーマ選択（lobby フェーズのみ） */}
+      {phase === "lobby" && (
+        <div className={`rounded-xl ${theme.colors.cardBg} p-5 shadow`}>
+          <ThemePicker />
+        </div>
+      )}
 
       {/* モーダル群 */}
       {showFieldEditor && (

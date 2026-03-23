@@ -1,18 +1,20 @@
 /**
  * QuizView — クイズ進行画面
  *
- * playing / revealing フェーズの表示を担当する。
+ * playing / revealing / interviewing フェーズの表示を担当する。
  */
 
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { useQuizStore } from "../stores/useQuizStore.js";
+import { useAnimationTheme } from "../animations/useAnimationTheme.js";
 import { socket } from "../lib/socket.js";
-import { C2S_EVENTS, TOTAL_QUESTIONS } from "@self-intro-quiz/shared";
+import { C2S_EVENTS } from "@self-intro-quiz/shared";
 import { Timer } from "./Timer.js";
 import { QuestionCard } from "./QuestionCard.js";
 import { ChoiceButton } from "./ChoiceButton.js";
 import { Scoreboard } from "./Scoreboard.js";
 import { ParticipantList } from "./ParticipantList.js";
+import { AnswerResultList } from "./AnswerResultList.js";
 
 export function QuizView() {
   const phase = useRoomStore((s) => s.phase);
@@ -27,7 +29,12 @@ export function QuizView() {
   const totalParticipants = useQuizStore((s) => s.totalParticipants);
   const answeredNicknames = useQuizStore((s) => s.answeredNicknames);
   const revealedAnswer = useQuizStore((s) => s.revealedAnswer);
+  const participantResults = useQuizStore((s) => s.participantResults);
   const scores = useQuizStore((s) => s.scores);
+  const hasVotedCurious = useQuizStore((s) => s.hasVotedCurious);
+  const interviewSpeech = useQuizStore((s) => s.interviewSpeech);
+  const totalQuestions = useQuizStore((s) => s.totalQuestions);
+  const theme = useAnimationTheme();
 
   const canAnswer =
     phase === "playing" &&
@@ -49,6 +56,14 @@ export function QuizView() {
     socket.emit(C2S_EVENTS.QUIZ_NEXT_QUESTION);
   };
 
+  const handleVoteCurious = () => {
+    if (!currentQuestion || hasVotedCurious) return;
+    useQuizStore.getState().setVotedCurious();
+    socket.emit(C2S_EVENTS.QUIZ_VOTE_CURIOUS, {
+      questionIndex: currentQuestion.index,
+    });
+  };
+
   if (!currentQuestion) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -64,16 +79,24 @@ export function QuizView() {
         {/* ヘッダ: タイマー + 回答状況 */}
         <div className="flex items-center justify-between">
           <Timer timerEndsAt={timerEndsAt} />
-          <div className="text-sm text-gray-500">
-            回答: {answeredCount} / {totalParticipants}
-          </div>
+          {phase === "playing" && (
+            <div className="text-sm text-gray-500">
+              回答: {answeredCount} / {totalParticipants}
+            </div>
+          )}
+          {phase === "interviewing" && (
+            <div className="text-sm text-amber-600 font-medium">
+              スピーチ中
+            </div>
+          )}
         </div>
 
         {/* 問題カード */}
         <QuestionCard
           index={currentQuestion.index}
           text={currentQuestion.text}
-          totalQuestions={TOTAL_QUESTIONS}
+          totalQuestions={totalQuestions}
+          yesNo={currentQuestion.questionType === "yes-no"}
         />
 
         {/* 途中参加者への案内 */}
@@ -84,26 +107,58 @@ export function QuizView() {
         )}
 
         {/* 選択肢 */}
-        <div className="space-y-2">
-          {currentQuestion.choices.map((choice, i) => {
-            let correct: boolean | null = null;
-            if (revealedAnswer) {
-              correct = i === revealedAnswer.correctIndex;
-            }
+        {currentQuestion.questionType === "yes-no" ? (
+          /* ⭕❌問題: 「どっちだ！？」ヘッダ + 横並びボタン */
+          <div className="space-y-3">
+            <div className="text-center">
+              <span className="inline-block rounded-full bg-amber-100 px-4 py-1 text-sm font-bold text-amber-700">
+                ⭕ or ❌ どっちだ！？
+              </span>
+            </div>
+            <div className="flex gap-3">
+              {currentQuestion.choices.map((choice, i) => {
+                let correct: boolean | null = null;
+                if (revealedAnswer) {
+                  correct = i === revealedAnswer.correctIndex;
+                }
+                return (
+                  <ChoiceButton
+                    key={i}
+                    label={choice}
+                    index={i}
+                    selected={myAnswer === i}
+                    correct={correct}
+                    disabled={!canAnswer}
+                    onClick={() => handleAnswer(i)}
+                    yesNo
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          /* 4択問題: 従来の縦並びボタン */
+          <div className="space-y-2">
+            {currentQuestion.choices.map((choice, i) => {
+              let correct: boolean | null = null;
+              if (revealedAnswer) {
+                correct = i === revealedAnswer.correctIndex;
+              }
 
-            return (
-              <ChoiceButton
-                key={i}
-                label={choice}
-                index={i}
-                selected={myAnswer === i}
-                correct={correct}
-                disabled={!canAnswer}
-                onClick={() => handleAnswer(i)}
-              />
-            );
-          })}
-        </div>
+              return (
+                <ChoiceButton
+                  key={i}
+                  label={choice}
+                  index={i}
+                  selected={myAnswer === i}
+                  correct={correct}
+                  disabled={!canAnswer}
+                  onClick={() => handleAnswer(i)}
+                />
+              );
+            })}
+          </div>
+        )}
 
         {/* 回答済みメッセージ */}
         {myAnswer !== null && phase === "playing" && (
@@ -115,19 +170,85 @@ export function QuizView() {
         {/* 正解発表 */}
         {phase === "revealing" && revealedAnswer && (
           <div className="space-y-4">
-            <div className="rounded-xl bg-blue-50 p-4">
-              <p className="font-medium text-blue-900">💡 {revealedAnswer.explanation}</p>
+            <div className={`rounded-xl ${theme.colors.explanationBg} p-4`}>
+              <p className={`font-medium ${theme.colors.explanationText}`}>💡 {revealedAnswer.explanation}</p>
+            </div>
+
+            {/* 回答結果: 誰が正解・不正解か */}
+            {participantResults.length > 0 && (
+              <div className={`rounded-xl ${theme.colors.cardBg} p-4 shadow`}>
+                <h4 className={`mb-2 text-sm font-bold ${theme.colors.textSecondary}`}>回答結果</h4>
+                <AnswerResultList results={participantResults} compact />
+              </div>
+            )}
+
+            {/* 「気になる👀」投票ボタン（全参加者） */}
+            <div className="text-center">
+              <button
+                onClick={handleVoteCurious}
+                disabled={hasVotedCurious}
+                className={`rounded-full px-6 py-2.5 text-base font-semibold transition ${
+                  hasVotedCurious
+                    ? "bg-amber-100 text-amber-600 cursor-default"
+                    : `${theme.colors.buttonAccent} text-white ${theme.colors.buttonAccentHover} active:scale-95`
+                }`}
+              >
+                {hasVotedCurious ? "✓ 気になる！" : "気になる👀"}
+              </button>
+              <p className="mt-1.5 text-xs text-gray-400">
+                もっと知りたいと思ったらタップ！
+              </p>
             </div>
 
             <Scoreboard scores={scores} compact />
 
-            {/* Host: 次の問題 / 結果を見る */}
+            {/* Host: 次の問題 */}
             {isHost && (
               <button
                 onClick={handleNext}
-                className="w-full rounded-lg bg-indigo-600 px-4 py-3 text-lg font-semibold text-white transition hover:bg-indigo-700"
+                className={`w-full rounded-lg ${theme.colors.buttonPrimary} px-4 py-3 text-lg font-semibold text-white transition ${theme.colors.buttonPrimaryHover}`}
               >
-                {currentQuestion.index < TOTAL_QUESTIONS - 1
+                {currentQuestion.index < totalQuestions - 1
+                  ? "次の問題へ →"
+                  : "結果を見る 🏆"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* スピーチタイム */}
+        {phase === "interviewing" && interviewSpeech && (
+          <div className="space-y-4">
+            <div className="rounded-xl border-2 border-amber-400 bg-amber-50 p-5">
+              <div className="mb-3 text-center">
+                <span className="inline-block rounded-full bg-amber-400 px-4 py-1.5 text-sm font-bold text-white">
+                  🎤 スピーチタイム
+                </span>
+              </div>
+              <h3 className="text-center text-xl font-bold text-amber-900">
+                {interviewSpeech.subjectNickname} さん、1分間どうぞ！
+              </h3>
+              <p className="mt-2 text-center text-sm text-amber-700">
+                みんなが気になっています！自由にお話しください
+              </p>
+            </div>
+
+            {revealedAnswer && (
+              <>
+                <div className={`rounded-xl ${theme.colors.explanationBg} p-4`}>
+                  <p className={`font-medium ${theme.colors.explanationText}`}>💡 {revealedAnswer.explanation}</p>
+                </div>
+                <Scoreboard scores={scores} compact />
+              </>
+            )}
+
+            {/* Host: 次の問題 / 結果を見る（スキップ用） */}
+            {isHost && (
+              <button
+                onClick={handleNext}
+                className={`w-full rounded-lg ${theme.colors.buttonPrimary} px-4 py-3 text-lg font-semibold text-white transition ${theme.colors.buttonPrimaryHover}`}
+              >
+                {currentQuestion.index < totalQuestions - 1
                   ? "次の問題へ →"
                   : "結果を見る 🏆"}
               </button>
@@ -138,7 +259,7 @@ export function QuizView() {
 
       {/* サイドバー: 参加者一覧 */}
       <div className="w-full lg:w-64 shrink-0">
-        <div className="rounded-xl bg-white p-4 shadow lg:sticky lg:top-4">
+        <div className={`rounded-xl ${theme.colors.cardBg} p-4 shadow lg:sticky lg:top-4`}>
           <ParticipantList
             mode="quiz"
             currentNickname={nickname}

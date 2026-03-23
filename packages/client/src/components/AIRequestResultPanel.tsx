@@ -90,6 +90,7 @@ export function AIRequestResultPanel({ onClose }: Props) {
   };
 
   const handleDiscard = () => {
+    socket.emit(C2S_EVENTS.AI_REQUEST_DISCARD);
     resetAIRequest();
     onClose();
   };

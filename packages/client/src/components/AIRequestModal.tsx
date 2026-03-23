@@ -6,15 +6,32 @@
  * ホストには「リクエスト締切 → AI 生成」ボタンも表示される。
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { socket } from "../lib/socket.js";
 import {
   C2S_EVENTS,
   AI_REQUEST_PRESETS,
+  AI_REQUEST_DISPLAY_COUNT,
   AI_REQUEST_MAX_FREE_TEXT,
 } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { Timer } from "./Timer.js";
+
+/**
+ * Fisher-Yates シャッフルで配列からランダムに count 個を選ぶ。
+ * 元の配列は変更しない。
+ */
+function pickRandom<T>(items: readonly T[], count: number): T[] {
+  const pool = [...items];
+  const n = Math.min(count, pool.length);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = pool[i];
+    pool[i] = pool[j] as T;
+    pool[j] = tmp as T;
+  }
+  return pool.slice(0, n);
+}
 
 interface Props {
   onClose: () => void;
@@ -30,6 +47,20 @@ export function AIRequestModal({ onClose }: Props) {
   const [selectedPresets, setSelectedPresets] = useState<string[]>([]);
   const [freeText, setFreeText] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [shuffleKey, setShuffleKey] = useState(0);
+
+  /** プリセットプールからランダムに DISPLAY_COUNT 個を表示 */
+  const displayedPresets = useMemo(
+    () => pickRandom(AI_REQUEST_PRESETS, AI_REQUEST_DISPLAY_COUNT) as string[],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- shuffleKey の変更で再抽選
+    [shuffleKey],
+  );
+
+  const handleShuffle = useCallback(() => {
+    setShuffleKey((k) => k + 1);
+    // シャッフル後も選択済みプリセットが新しい表示に含まれていれば維持される
+    // 含まれなくなったプリセットの選択は有効なまま送信される（非表示でも問題ない）
+  }, []);
 
   const togglePreset = useCallback((preset: string) => {
     setSelectedPresets((prev) =>
@@ -69,13 +100,23 @@ export function AIRequestModal({ onClose }: Props) {
           <p className="mt-2 text-sm text-gray-500">
             みんなのリクエストをもとに最適な項目を提案します
           </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="mt-5 w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
-          >
-            閉じる（結果が届いたら再表示されます）
-          </button>
+          {isHost ? (
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="mt-5 w-full rounded-lg border border-red-300 px-4 py-2 text-sm text-red-600 transition hover:bg-red-50"
+            >
+              ❌ AI リクエストをキャンセル
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-5 w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
+            >
+              閉じる（結果が届いたら再表示されます）
+            </button>
+          )}
         </div>
       </div>
     );
@@ -120,11 +161,21 @@ export function AIRequestModal({ onClose }: Props) {
           <div className="space-y-4">
             {/* プリセット選択 */}
             <div>
-              <p className="mb-2 text-sm font-medium text-gray-700">
-                プリセットから選択（複数可）
-              </p>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-medium text-gray-700">
+                  プリセットから選択（複数可）
+                </p>
+                <button
+                  type="button"
+                  onClick={handleShuffle}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-indigo-600 transition hover:bg-indigo-50"
+                  title="別の候補を表示"
+                >
+                  🔀 別の候補
+                </button>
+              </div>
               <div className="flex flex-wrap gap-2">
-                {AI_REQUEST_PRESETS.map((preset) => (
+                {displayedPresets.map((preset) => (
                   <button
                     key={preset}
                     type="button"
@@ -139,6 +190,12 @@ export function AIRequestModal({ onClose }: Props) {
                   </button>
                 ))}
               </div>
+              {/* 非表示だが選択済みのプリセットがあれば表示 */}
+              {selectedPresets.filter((p) => !displayedPresets.includes(p)).length > 0 && (
+                <p className="mt-1.5 text-xs text-indigo-500">
+                  + 前の候補から {selectedPresets.filter((p) => !displayedPresets.includes(p)).length} 件選択済み
+                </p>
+              )}
             </div>
 
             {/* 自由テキスト */}
@@ -193,14 +250,23 @@ export function AIRequestModal({ onClose }: Props) {
           </div>
         )}
 
-        {/* 閉じるボタン（全員表示・セッションは継続） */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-3 w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
-        >
-          閉じる
-        </button>
+        {/* 閉じるボタン（非ホストのみ・セッションは継続） */}
+        {!isHost && (
+          <button
+            type="button"
+            onClick={() => {
+              // 未送信の場合はサーバに dismiss（オプトアウト）を通知
+              if (!submitted) {
+                socket.emit(C2S_EVENTS.AI_REQUEST_DISMISS);
+                useRoomStore.getState().setAIRequestOptedOut(true);
+              }
+              onClose();
+            }}
+            className="mt-3 w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
+          >
+            閉じる
+          </button>
+        )}
       </div>
     </div>
   );

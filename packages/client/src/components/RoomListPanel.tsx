@@ -25,6 +25,8 @@ function phaseBadge(phase: RoomPhase): { label: string; className: string } {
             return { label: "プレイ中", className: "bg-yellow-100 text-yellow-700" };
         case "revealing":
             return { label: "解答中", className: "bg-yellow-100 text-yellow-700" };
+        case "interviewing":
+            return { label: "インタビュー中", className: "bg-amber-100 text-amber-700" };
         case "finished":
             return { label: "終了", className: "bg-gray-100 text-gray-500" };
     }
