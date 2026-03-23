@@ -10,8 +10,11 @@ import {
     C2S_EVENTS,
     S2C_EVENTS,
     SubmitAnswerSchema,
+    VoteCuriousSchema,
     DEFAULT_QUESTION_TIME_LIMIT_MS,
     DEFAULT_MIN_PARTICIPANTS,
+    INTERVIEW_SPEECH_DURATION_MS,
+    calculateQuizCount,
 } from "@self-intro-quiz/shared";
 import type {
     RoomErrorPayload,
@@ -20,6 +23,7 @@ import type {
     QuizGenerateFailedPayload,
     AnswerCountPayload,
     QuizFinishedPayload,
+    InterviewStartPayload,
 } from "@self-intro-quiz/shared";
 import { RoomAggregate, RoomDomainError } from "../domain/room/RoomAggregate.js";
 import { QuizAggregate, QuizDomainError } from "../domain/quiz/QuizAggregate.js";
@@ -121,9 +125,12 @@ export function registerQuizHandlers(
             // ルームのプロフィール項目定義を取得（AI プロンプトのラベル解決に使用）
             const profileFields = roomAgg.profileFields;
 
+            // 問題数を参加者数とプロフィール項目数から動的に算出
+            const quizConfig = calculateQuizCount(participants.length, profileFields.length);
+
             void (async () => {
                 try {
-                    const questions = await quizGenerator.generate(participants, profileFields);
+                    const questions = await quizGenerator.generate(participants, profileFields, quizConfig);
                     const quizAgg = QuizAggregate.create(session.roomCode, questions);
                     quizRepo.save(quizAgg.toQuiz());
 
@@ -221,40 +228,48 @@ export function registerQuizHandlers(
 
                 broadcastRoomList(io, roomRepo);
             } else if (roomAgg.phase === "revealing") {
-                // 次の問題 or 終了
-                const nextEligible = getEligibleParticipants(roomAgg, quizAgg.currentQuestionIndex + 1);
-                const startPayload = quizAgg.nextQuestion(timerEndsAt, nextEligible.length);
+                // 「気になる」投票の閾値チェック → スピーチタイム or 次の問題
+                const connectedParticipants = roomAgg.getConnectedParticipants();
+                if (quizAgg.hasCuriousThreshold(connectedParticipants.length)) {
+                    // 閾値達成 → インタビュー（スピーチ）タイムへ
+                    const subjectId = quizAgg.currentSubjectId;
+                    const subject = subjectId ? roomAgg.getParticipant(subjectId) : undefined;
+                    const subjectNickname = subject?.nickname ?? "???";
 
-                if (startPayload) {
-                    // 次の問題
-                    roomAgg.changePhase("playing");
+                    const speechEndsAt = Date.now() + INTERVIEW_SPEECH_DURATION_MS;
+                    // timerEndsAt をスピーチ終了時刻として再利用
+                    const quizData = quizAgg.toQuiz();
+                    quizData.timerEndsAt = speechEndsAt;
+
+                    roomAgg.changePhase("interviewing");
                     roomRepo.save(roomAgg.toRoom());
                     quizRepo.save(quizAgg.toQuiz());
 
-                    io.to(session.roomCode).emit(S2C_EVENTS.QUESTION_START, startPayload);
+                    const payload: InterviewStartPayload = {
+                        subjectNickname,
+                        speechEndsAt,
+                    };
+                    io.to(session.roomCode).emit(S2C_EVENTS.INTERVIEW_START, payload);
 
-                    scheduleTimeout(io, session.roomCode, roomRepo, quizRepo, quizAgg, roomAgg, timerService, timeLimit);
+                    // スピーチタイマー: 1分後に自動で次の問題へ
+                    timerService.schedule(session.roomCode, INTERVIEW_SPEECH_DURATION_MS, () => {
+                        advanceFromInterview(io, session.roomCode, roomRepo, quizRepo, timerService);
+                    });
 
                     logger.info(
-                        { roomCode: session.roomCode, questionIndex: startPayload.index },
-                        "Next question started",
+                        { roomCode: session.roomCode, subjectNickname },
+                        "Interview speech started (curious threshold met)",
                     );
-                } else {
-                    // 全問終了
-                    roomAgg.changePhase("finished");
-                    roomRepo.save(roomAgg.toRoom());
-                    quizRepo.save(quizAgg.toQuiz());
-
-                    const finalScores = quizAgg.computeScoreboard(room.participants);
-                    const finished: QuizFinishedPayload = { finalScores };
-                    io.to(session.roomCode).emit(S2C_EVENTS.QUIZ_FINISHED, finished);
-
-                    timerService.cancel(session.roomCode);
-
-                    logger.info({ roomCode: session.roomCode }, "Quiz finished");
 
                     broadcastRoomList(io, roomRepo);
+                } else {
+                    // 閾値未達 → 次の問題 or 終了
+                    advanceToNextQuestion(io, session.roomCode, roomAgg, quizAgg, roomRepo, quizRepo, timerService, room);
                 }
+            } else if (roomAgg.phase === "interviewing") {
+                // スピーチタイム中 → ホストが手動スキップ → 次の問題 or 終了
+                timerService.cancel(session.roomCode);
+                advanceFromInterview(io, session.roomCode, roomRepo, quizRepo, timerService);
             } else {
                 socket.emit(S2C_EVENTS.ROOM_ERROR, {
                     code: "INVALID_PHASE",
@@ -350,6 +365,56 @@ export function registerQuizHandlers(
             emitError(socket, error);
         }
     });
+
+    // ----------------------------------------------------------
+    // quiz:vote-curious — 「気になる」投票
+    // ----------------------------------------------------------
+    socket.on(C2S_EVENTS.QUIZ_VOTE_CURIOUS, (payload: unknown) => {
+        try {
+            const parsed = VoteCuriousSchema.parse(payload);
+            const session = socketSessions.get(socket.id);
+            if (!session) return;
+
+            const room = roomRepo.findByCode(session.roomCode);
+            if (!room) return;
+
+            const roomAgg = RoomAggregate.fromRoom(room);
+
+            // フェーズチェック: revealing のみ
+            if (roomAgg.phase !== "revealing") {
+                socket.emit(S2C_EVENTS.ROOM_ERROR, {
+                    code: "INVALID_PHASE",
+                    message: "正解発表中のみ投票できます",
+                } satisfies RoomErrorPayload);
+                return;
+            }
+
+            const quiz = quizRepo.findByRoomCode(session.roomCode);
+            if (!quiz) return;
+
+            const quizAgg = QuizAggregate.fromQuiz(quiz);
+
+            // 問題番号チェック
+            if (parsed.questionIndex !== quizAgg.currentQuestionIndex) {
+                return; // 古い問題への投票は無視
+            }
+
+            // 投票記録（重複は Set で自動排除）
+            quizAgg.voteCurious(session.participantId, parsed.questionIndex);
+            quizRepo.save(quizAgg.toQuiz());
+
+            logger.info(
+                {
+                    roomCode: session.roomCode,
+                    participantId: session.participantId,
+                    questionIndex: parsed.questionIndex,
+                },
+                "Curious vote submitted",
+            );
+        } catch (error) {
+            emitError(socket, error);
+        }
+    });
 }
 
 // ============================================================
@@ -421,6 +486,80 @@ function triggerReveal(
 
     // revealing フェーズに遷移したためルーム一覧を更新
     broadcastRoomList(io, roomRepo);
+}
+
+/**
+ * 次の問題に進む、または全問終了する。
+ * revealing フェーズからの遷移に使用。
+ */
+function advanceToNextQuestion(
+    io: Server,
+    roomCode: string,
+    roomAgg: RoomAggregate,
+    quizAgg: QuizAggregate,
+    roomRepo: RoomRepository,
+    quizRepo: QuizRepository,
+    timerService: NodeTimerService,
+    room: import("@self-intro-quiz/shared").Room,
+): void {
+    const timeLimit = getQuestionTimeLimit();
+    const timerEndsAt = Date.now() + timeLimit;
+    const nextEligible = getEligibleParticipants(roomAgg, quizAgg.currentQuestionIndex + 1);
+    const startPayload = quizAgg.nextQuestion(timerEndsAt, nextEligible.length);
+
+    if (startPayload) {
+        roomAgg.changePhase("playing");
+        roomRepo.save(roomAgg.toRoom());
+        quizRepo.save(quizAgg.toQuiz());
+
+        io.to(roomCode).emit(S2C_EVENTS.QUESTION_START, startPayload);
+
+        scheduleTimeout(io, roomCode, roomRepo, quizRepo, quizAgg, roomAgg, timerService, timeLimit);
+
+        logger.info(
+            { roomCode, questionIndex: startPayload.index },
+            "Next question started",
+        );
+    } else {
+        roomAgg.changePhase("finished");
+        roomRepo.save(roomAgg.toRoom());
+        quizRepo.save(quizAgg.toQuiz());
+
+        const finalScores = quizAgg.computeScoreboard(room.participants);
+        const highlights = quizAgg.computeHighlights(room.participants);
+        const questionResults = quizAgg.computeAllQuestionResults(room.participants);
+        const finished: QuizFinishedPayload = { finalScores, highlights, questionResults };
+        io.to(roomCode).emit(S2C_EVENTS.QUIZ_FINISHED, finished);
+
+        timerService.cancel(roomCode);
+
+        logger.info({ roomCode }, "Quiz finished");
+
+        broadcastRoomList(io, roomRepo);
+    }
+}
+
+/**
+ * インタビュー（スピーチ）タイム終了後に次の問題へ進む。
+ * タイマー満了またはホストの手動スキップで呼ばれる。
+ */
+function advanceFromInterview(
+    io: Server,
+    roomCode: string,
+    roomRepo: RoomRepository,
+    quizRepo: QuizRepository,
+    timerService: NodeTimerService,
+): void {
+    const room = roomRepo.findByCode(roomCode);
+    if (!room) return;
+
+    const quiz = quizRepo.findByRoomCode(roomCode);
+    if (!quiz) return;
+
+    const roomAgg = RoomAggregate.fromRoom(room);
+    const quizAgg = QuizAggregate.fromQuiz(quiz);
+
+    advanceToNextQuestion(io, roomCode, roomAgg, quizAgg, roomRepo, quizRepo, timerService, room);
 }
 
 // ============================================================

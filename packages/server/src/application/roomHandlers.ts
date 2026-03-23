@@ -14,6 +14,7 @@ import {
     CheckNicknameSchema,
     SubmitProfileSchema,
     UpdateFieldsSchema,
+    SetThemeSchema,
     MAX_PARTICIPANTS,
     DISCONNECT_REMOVE_TIMEOUT_MS,
     createProfileSchema,
@@ -33,6 +34,7 @@ import type {
     Participant,
     RoomSummary,
     RoomListPayload,
+    AnimationThemeName,
 } from "@self-intro-quiz/shared";
 import { RoomAggregate, RoomDomainError } from "../domain/room/RoomAggregate.js";
 import type { RoomRepository } from "../domain/room/RoomRepository.js";
@@ -140,8 +142,9 @@ function buildRoomStateSync(
             code: room.code,
             phase: room.phase,
             currentQuestionIndex: quizAgg?.currentQuestionIndex ?? -1,
-            totalQuestions: 10,
+            totalQuestions: quizAgg?.totalQuestions ?? 0,
             profileFields: roomAgg.profileFields,
+            animationTheme: roomAgg.animationTheme,
         },
         participants,
         self: {
@@ -149,11 +152,12 @@ function buildRoomStateSync(
             nickname: participant.nickname,
             isHost: participant.isHost,
             joinedAtQuestion: participant.joinedAtQuestion,
+            profile: participant.profile,
         },
     };
 
-    // playing/revealing 中の問題情報
-    if (quizAgg && (room.phase === "playing" || room.phase === "revealing")) {
+    // playing/revealing/interviewing 中の問題情報
+    if (quizAgg && (room.phase === "playing" || room.phase === "revealing" || room.phase === "interviewing")) {
         const quizData = quizAgg.toQuiz();
         const currentQ = quizAgg.currentQuestion;
         if (currentQ) {
@@ -165,6 +169,7 @@ function buildRoomStateSync(
 
             sync.currentQuestion = {
                 index: currentQ.index,
+                questionType: currentQ.questionType,
                 text: currentQ.text,
                 choices: currentQ.choices,
                 timerEndsAt: quizData.timerEndsAt ?? 0,
@@ -174,13 +179,36 @@ function buildRoomStateSync(
             };
         }
 
-        // revealing 中は正解情報も含む
-        if (room.phase === "revealing" && currentQ) {
+        // revealing/interviewing 中は正解情報も含む
+        if ((room.phase === "revealing" || room.phase === "interviewing") && currentQ) {
             const scores = quizAgg.computeScoreboard(room.participants);
+            const participantResults = quizAgg.computeParticipantResults(
+                quizAgg.currentQuestionIndex,
+                room.participants,
+            );
             sync.revealedAnswer = {
                 correctIndex: currentQ.correctIndex,
                 explanation: currentQ.explanation,
                 scores,
+                participantResults,
+            };
+        }
+
+        // revealing 中は「気になる」投票状態も含む（再接続時の復元用）
+        if (room.phase === "revealing") {
+            sync.hasVotedCurious = quizAgg.hasVotedCurious(
+                participant.id,
+                quizAgg.currentQuestionIndex,
+            );
+        }
+
+        // interviewing 中はスピーチ情報も含む
+        if (room.phase === "interviewing" && currentQ) {
+            const subjectId = currentQ.subjectId;
+            const subject = room.participants.get(subjectId);
+            sync.interviewSpeech = {
+                subjectNickname: subject?.nickname ?? "???",
+                speechEndsAt: quizData.timerEndsAt ?? 0,
             };
         }
     }
@@ -444,6 +472,9 @@ export function registerRoomHandlers(
                 return;
             }
 
+            // 進行中の AI リクエストセッションをキャンセル
+            cancelAIRequestSession(session.roomCode, io, timerService);
+
             // 全員に通知して Room を削除
             io.to(session.roomCode).emit(S2C_EVENTS.ROOM_CLOSED, {});
 
@@ -613,6 +644,41 @@ export function registerRoomHandlers(
             logger.info(
                 { roomCode: session.roomCode, nickname: participant?.nickname },
                 "Profile submitted",
+            );
+        } catch (error) {
+            emitError(socket, error);
+        }
+    });
+
+    // ----------------------------------------------------------
+    // room:set-theme——アニメーションテーマ変更（Host のみ、lobby フェーズ限定）
+    // ----------------------------------------------------------
+    socket.on(C2S_EVENTS.ROOM_SET_THEME, (payload: unknown) => {
+        try {
+            const parsed = SetThemeSchema.parse(payload);
+            const session = socketSessions.get(socket.id);
+            if (!session) {
+                socket.emit(S2C_EVENTS.ROOM_ERROR, {
+                    code: "NOT_IN_ROOM",
+                    message: "ルームに参加していません",
+                } satisfies RoomErrorPayload);
+                return;
+            }
+
+            const room = roomRepo.findByCode(session.roomCode);
+            if (!room) return;
+
+            const roomAgg = RoomAggregate.fromRoom(room);
+            roomAgg.setAnimationTheme(parsed.theme as AnimationThemeName, session.participantId);
+            roomRepo.save(roomAgg.toRoom());
+
+            io.to(session.roomCode).emit(S2C_EVENTS.ROOM_THEME_CHANGED, {
+                theme: parsed.theme,
+            });
+
+            logger.info(
+                { roomCode: session.roomCode, theme: parsed.theme },
+                "Animation theme changed",
             );
         } catch (error) {
             emitError(socket, error);
@@ -796,6 +862,11 @@ function handleExplicitLeave(
     }
 
     const nickname = participant.nickname;
+
+    // ホストが退出する場合、進行中の AI リクエストセッションをキャンセル
+    if (roomAgg.isHost(session.participantId)) {
+        cancelAIRequestSession(session.roomCode, io, timerService);
+    }
 
     // 完全削除 + ホスト移譲
     const { newHost, roomEmpty } = roomAgg.leaveAndTransferHost(session.participantId);

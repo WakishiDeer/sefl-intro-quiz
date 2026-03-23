@@ -26,8 +26,10 @@ import {
 } from "@self-intro-quiz/shared";
 import { InMemoryRoomRepository } from "./infrastructure/InMemoryRoomRepository.js";
 import { InMemoryQuizRepository } from "./infrastructure/InMemoryQuizRepository.js";
-import { ClaudeQuizGenerator } from "./infrastructure/ClaudeQuizGenerator.js";
-import { ClaudeProfileFieldSuggester } from "./infrastructure/ClaudeProfileFieldSuggester.js";
+import { AzureOpenAIQuizGenerator } from "./infrastructure/AzureOpenAIQuizGenerator.js";
+import { AzureOpenAIProfileFieldSuggester } from "./infrastructure/AzureOpenAIProfileFieldSuggester.js";
+import { StubQuizGenerator } from "./infrastructure/StubQuizGenerator.js";
+import { StubProfileFieldSuggester } from "./infrastructure/StubProfileFieldSuggester.js";
 import { NodeTimerService } from "./infrastructure/NodeTimerService.js";
 import { registerRoomHandlers } from "./application/roomHandlers.js";
 import { broadcastRoomList } from "./application/roomHandlers.js";
@@ -41,18 +43,36 @@ import { logger } from "./utils/logger.js";
 
 const PORT = parseInt(process.env["PORT"] ?? "3001", 10);
 const CLIENT_URL = process.env["CLIENT_URL"] ?? "http://localhost:5173";
-const ANTHROPIC_API_KEY = process.env["ANTHROPIC_API_KEY"] ?? "";
+const AI_PROVIDER = process.env["AI_PROVIDER"] ?? "no-ai";
+const AZURE_OPENAI_ENDPOINT = process.env["AZURE_OPENAI_ENDPOINT"] ?? "";
+const AZURE_OPENAI_API_KEY = process.env["AZURE_OPENAI_API_KEY"] ?? "";
+const AZURE_OPENAI_DEPLOYMENT = process.env["AZURE_OPENAI_DEPLOYMENT"] ?? "gpt-51";
 const ROOM_TIMEOUT_MS = (parseInt(process.env["ROOM_TIMEOUT_MINUTES"] ?? "30", 10)) * 60 * 1000;
 
 // ============================================================
 // Infrastructure 層の組み立て（DI）
+// AI_PROVIDER 環境変数で azure-openai / no-ai を切り替え
 // ============================================================
 
 const roomRepo = new InMemoryRoomRepository();
 const quizRepo = new InMemoryQuizRepository();
-const CLAUDE_MODEL = process.env["CLAUDE_MODEL"] ?? undefined;
-const quizGenerator = new ClaudeQuizGenerator(ANTHROPIC_API_KEY, CLAUDE_MODEL);
-const fieldSuggester = new ClaudeProfileFieldSuggester(ANTHROPIC_API_KEY, CLAUDE_MODEL);
+
+const { quizGenerator, fieldSuggester } = (() => {
+  if (AI_PROVIDER === "azure-openai") {
+    logger.info({ provider: "azure-openai", deployment: AZURE_OPENAI_DEPLOYMENT }, "Using Azure OpenAI");
+    return {
+      quizGenerator: new AzureOpenAIQuizGenerator(AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_DEPLOYMENT),
+      fieldSuggester: new AzureOpenAIProfileFieldSuggester(AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_DEPLOYMENT),
+    };
+  }
+  // デフォルト: スタブ（no-ai）
+  logger.info({ provider: "no-ai" }, "Using stub implementations (no AI)");
+  return {
+    quizGenerator: new StubQuizGenerator(),
+    fieldSuggester: new StubProfileFieldSuggester(),
+  };
+})();
+
 const timerService = new NodeTimerService();
 
 // ============================================================
@@ -89,12 +109,26 @@ app.get("/health", (_req, res) => {
 // ============================================================
 
 const httpServer = createServer(app);
+
+// 本番環境（同一オリジン配信）では CORS 不要
+const corsOrigin = CLIENT_URL || undefined;
 const io = new Server(httpServer, {
-  cors: {
-    origin: CLIENT_URL,
-    methods: ["GET", "POST"],
-  },
+  ...(corsOrigin ? { cors: { origin: corsOrigin, methods: ["GET", "POST"] } } : {}),
 });
+
+// ============================================================
+// 本番環境: クライアント静的ファイル配信
+// Socket.IO のパス（/socket.io/）がハンドリングされた後に登録する
+// ============================================================
+
+if (process.env["NODE_ENV"] === "production") {
+  const clientDistPath = resolve(__dirname, "../../client/dist");
+  app.use(express.static(clientDistPath));
+  // SPA フォールバック: API・Socket.IO 以外のリクエストは index.html へ
+  app.get("*", (_req, res) => {
+    res.sendFile(resolve(clientDistPath, "index.html"));
+  });
+}
 
 // Socket.IO 接続ハンドラ
 io.on("connection", (socket) => {
