@@ -91,13 +91,15 @@ export function QuizView() {
           )}
         </div>
 
-        {/* 問題カード */}
-        <QuestionCard
-          index={currentQuestion.index}
-          text={currentQuestion.text}
-          totalQuestions={totalQuestions}
-          yesNo={currentQuestion.questionType === "yes-no"}
-        />
+        {/* 問題カード — interviewing 中はスポットライト演出を優先して非表示 */}
+        {phase !== "interviewing" && (
+          <QuestionCard
+            index={currentQuestion.index}
+            text={currentQuestion.text}
+            totalQuestions={totalQuestions}
+            yesNo={currentQuestion.questionType === "yes-no"}
+          />
+        )}
 
         {/* 途中参加者への案内 */}
         {joinedAtQuestion > currentQuestion.index && phase === "playing" && (
@@ -106,8 +108,8 @@ export function QuizView() {
           </div>
         )}
 
-        {/* 選択肢 */}
-        {currentQuestion.questionType === "yes-no" ? (
+        {/* 選択肢 — interviewing 中は非表示 */}
+        {phase !== "interviewing" && (currentQuestion.questionType === "yes-no" ? (
           /* ⭕❌問題: 「どっちだ！？」ヘッダ + 横並びボタン */
           <div className="space-y-3">
             <div className="text-center">
@@ -158,7 +160,7 @@ export function QuizView() {
               );
             })}
           </div>
-        )}
+        ))}
 
         {/* 回答済みメッセージ */}
         {myAnswer !== null && phase === "playing" && (
@@ -183,11 +185,11 @@ export function QuizView() {
             )}
 
             {/* 「気になる👀」投票ボタン（全参加者） */}
-            <div className="text-center">
+            <div className="flex flex-col items-center">
               <button
                 onClick={handleVoteCurious}
                 disabled={hasVotedCurious}
-                className={`rounded-full px-6 py-2.5 text-base font-semibold transition ${
+                className={`min-w-48 rounded-full px-8 py-2.5 text-base font-semibold transition ${
                   hasVotedCurious
                     ? `${theme.colors.badgeWarning} cursor-default`
                     : `${theme.colors.buttonAccent} text-white ${theme.colors.buttonAccentHover} active:scale-95`
@@ -216,33 +218,26 @@ export function QuizView() {
           </div>
         )}
 
-        {/* スピーチタイム */}
+        {/* スピーチタイム — スポットライト演出に集中。スコア等は revealing で表示済み */}
         {phase === "interviewing" && interviewSpeech && (
-          <div className="space-y-4">
+          <>
             {/* スポットライト演出（名前・バッジ・デコ込み） */}
             {theme.effects.onInterview?.(interviewSpeech.subjectNickname)}
 
-            {revealedAnswer && (
-              <>
-                <div className={`rounded-xl ${theme.colors.explanationBg} p-4`}>
-                  <p className={`font-medium ${theme.colors.explanationText}`}>💡 {revealedAnswer.explanation}</p>
-                </div>
-                <Scoreboard scores={scores} compact />
-              </>
-            )}
-
-            {/* Host: 次の問題 / 結果を見る（スキップ用） */}
+            {/* Host: 次の問題 / 結果を見る — オーバーレイ(z-20)の上に固定表示 */}
             {isHost && (
-              <button
-                onClick={handleNext}
-                className={`relative z-10 w-full rounded-lg ${theme.colors.buttonPrimary} px-4 py-3 text-lg font-semibold text-white shadow-lg transition ${theme.colors.buttonPrimaryHover}`}
-              >
-                {currentQuestion.index < totalQuestions - 1
-                  ? "次の問題へ →"
-                  : "結果を見る 🏆"}
-              </button>
+              <div className="fixed inset-x-0 bottom-8 z-30 mx-auto max-w-lg px-4">
+                <button
+                  onClick={handleNext}
+                  className={`w-full rounded-lg ${theme.colors.buttonPrimary} px-4 py-3 text-lg font-semibold text-white shadow-2xl transition ${theme.colors.buttonPrimaryHover}`}
+                >
+                  {currentQuestion.index < totalQuestions - 1
+                    ? "次の問題へ →"
+                    : "結果を見る 🏆"}
+                </button>
+              </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
