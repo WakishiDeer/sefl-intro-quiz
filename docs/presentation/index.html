@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Self-Intro Quiz — アプリ紹介</title>
+<style>
+  /* ============ Reset & Base ============ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; font-size: 18px; }
+  body {
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", "Meiryo", sans-serif;
+    background: #0f0f23;
+    color: #e0e0e0;
+    line-height: 1.7;
+  }
+
+  /* ============ Slide Container ============ */
+  .slide {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 3rem 2rem;
+    position: relative;
+  }
+  .slide:nth-child(even) { background: #12122e; }
+  .slide:nth-child(odd)  { background: #0f0f23; }
+
+  /* ============ Title Slide ============ */
+  .slide-title {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4f46e5 100%);
+    text-align: center;
+  }
+  .slide-title h1 {
+    font-size: 3.5rem;
+    background: linear-gradient(90deg, #a5b4fc, #818cf8, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+  }
+  .slide-title .subtitle {
+    font-size: 1.4rem;
+    color: #a5b4fc;
+    margin-bottom: 2rem;
+  }
+  .slide-title .meta {
+    font-size: 0.9rem;
+    color: #6366f1;
+  }
+  .emoji-hero { font-size: 5rem; margin-bottom: 1rem; }
+
+  /* ============ Section Headers ============ */
+  .section-number {
+    display: inline-block;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.3rem 0.8rem;
+    border-radius: 9999px;
+    margin-bottom: 0.8rem;
+    letter-spacing: 0.05em;
+  }
+  h2 {
+    font-size: 2.2rem;
+    color: #c7d2fe;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  h3 {
+    font-size: 1.3rem;
+    color: #a5b4fc;
+    margin-bottom: 0.8rem;
+  }
+
+  /* ============ Content ============ */
+  .content {
+    max-width: 1000px;
+    width: 100%;
+  }
+  .content p {
+    color: #cbd5e1;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  .content p.left { text-align: left; }
+
+  /* ============ Screenshot ============ */
+  .screenshot-wrap {
+    margin: 1.5rem auto;
+    max-width: 900px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.25), 0 0 0 1px rgba(99, 102, 241, 0.15);
+  }
+  .screenshot-wrap img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .screenshot-caption {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #818cf8;
+    margin-top: 0.5rem;
+    font-style: italic;
+  }
+
+  /* ============ Feature Grid ============ */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin: 1.5rem 0;
+  }
+  .feature-card {
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.2);
+  }
+  .feature-card .icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+  .feature-card h3 { margin-bottom: 0.4rem; }
+  .feature-card p { text-align: left; font-size: 0.9rem; color: #94a3b8; }
+
+  /* ============ Tech Stack ============ */
+  .tech-table {
+    margin: 1.5rem auto;
+    border-collapse: collapse;
+    width: 100%;
+    max-width: 700px;
+  }
+  .tech-table th, .tech-table td {
+    padding: 0.7rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.15);
+  }
+  .tech-table th {
+    color: #a5b4fc;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .tech-table td { color: #cbd5e1; }
+  .tech-badge {
+    display: inline-block;
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    padding: 0.15rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  /* ============ Flow Diagram ============ */
+  .flow-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1.5rem 0;
+  }
+  .flow-step {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 10px;
+    padding: 0.8rem 1.2rem;
+    text-align: center;
+    min-width: 120px;
+  }
+  .flow-step .step-icon { font-size: 1.5rem; }
+  .flow-step .step-label { font-size: 0.85rem; color: #c7d2fe; margin-top: 0.3rem; }
+  .flow-arrow {
+    font-size: 1.5rem;
+    color: #6366f1;
+  }
+
+  /* ============ Side-by-Side ============ */
+  .side-by-side {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin: 1.5rem 0;
+  }
+  @media (max-width: 768px) {
+    .side-by-side { grid-template-columns: 1fr; }
+    h2 { font-size: 1.6rem; }
+    .slide-title h1 { font-size: 2.2rem; }
+  }
+
+  /* ============ Highlight Box ============ */
+  .highlight-box {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+    border-left: 4px solid #6366f1;
+    border-radius: 0 10px 10px 0;
+    padding: 1.2rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .highlight-box p { text-align: left; }
+
+  /* ============ Architecture Diagram ============ */
+  .arch-diagram {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+    margin: 1.5rem 0;
+  }
+  .arch-box {
+    background: rgba(30, 27, 75, 0.6);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 12px;
+    padding: 1.2rem;
+    min-width: 200px;
+    text-align: center;
+  }
+  .arch-box h4 {
+    color: #a5b4fc;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+  }
+  .arch-box ul {
+    list-style: none;
+    font-size: 0.85rem;
+    color: #94a3b8;
+  }
+  .arch-box ul li { padding: 0.2rem 0; }
+  .arch-connector {
+    display: flex;
+    align-items: center;
+    color: #6366f1;
+    font-size: 1.8rem;
+  }
+
+  /* ============ Nav Dots ============ */
+  .nav-dots {
+    position: fixed;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 100;
+  }
+  .nav-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(99, 102, 241, 0.3);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .nav-dot:hover, .nav-dot.active {
+    background: #6366f1;
+    transform: scale(1.3);
+  }
+
+  /* ============ Theme Tabs ============ */
+  .theme-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 1.5rem 0 1rem;
+    flex-wrap: wrap;
+  }
+  .theme-tab {
+    padding: 0.5rem 1.2rem;
+    border-radius: 9999px;
+    border: 2px solid rgba(99, 102, 241, 0.3);
+    background: transparent;
+    color: #a5b4fc;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .theme-tab:hover { border-color: #6366f1; color: #c7d2fe; }
+  .theme-tab.active {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border-color: transparent;
+  }
+  .theme-panel { display: none; }
+  .theme-panel.active { display: block; }
+  .theme-desc {
+    text-align: center;
+    font-size: 0.95rem;
+    color: #94a3b8;
+    margin-bottom: 1rem;
+  }
+
+  /* ============ List ============ */
+  .styled-list {
+    list-style: none;
+    padding: 0;
+  }
+  .styled-list li {
+    padding: 0.5rem 0;
+    padding-left: 1.5rem;
+    position: relative;
+    color: #cbd5e1;
+  }
+  .styled-list li::before {
+    content: "▸";
+    position: absolute;
+    left: 0;
+    color: #6366f1;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ Nav Dots ============ -->
+<nav class="nav-dots" id="navDots"></nav>
+
+<!-- ============ Slide 1: Title ============ -->
+<section class="slide slide-title" id="slide-1">
+  <div class="emoji-hero">🎉</div>
+  <h1>Self-Intro Quiz</h1>
+  <p class="subtitle">みんなの自己紹介でクイズ大会！</p>
+  <p class="meta">AI × リアルタイム Web アプリ &nbsp;|&nbsp; v0.1.0 &nbsp;|&nbsp; 2026-03-24</p>
+</section>
+
+<!-- ============ Slide 2: 概要 ============ -->
+<section class="slide" id="slide-2">
+  <div class="content">
+    <span class="section-number">OVERVIEW</span>
+    <h2>Self-Intro Quiz とは？</h2>
+    <p>参加者の自己紹介情報をもとに <strong>AI が4択クイズを自動生成</strong> するリアルタイム Web アプリです。</p>
+    <p>社内懇親会やアイスブレイクで、初対面でも盛り上がれる体験を提供します。</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">🤖</div>
+        <h3>AI 自動生成</h3>
+        <p>参加者のプロフィールから Azure OpenAI が面白いクイズを自動生成。準備不要！</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">⚡</div>
+        <h3>リアルタイム</h3>
+        <p>Socket.IO による全端末同期。回答・スコア・タイマーがリアルタイムに反映されます。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📱</div>
+        <h3>ブラウザだけ</h3>
+        <p>インストール不要。PC でもスマホでもブラウザからすぐ参加できます。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🎭</div>
+        <h3>テーマ切替</h3>
+        <p>5種類のテーマ（subtle / fun / party / cyber / sakura）でクイズの雰囲気をカスタマイズ。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Slide 3: フロー概要 ============ -->
+<section class="slide" id="slide-3">
+  <div class="content">
+    <span class="section-number">FLOW</span>
+    <h2>利用の流れ（15〜20分）</h2>
+
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="step-icon">🏠</div>
+        <div class="step-label">ルーム作成</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-icon">👥</div>
+        <div class="step-label">参加 & 入室</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-icon">📝</div>
+        <div class="step-label">プロフィール入力</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-icon">🤖</div>
+        <div class="step-label">AI クイズ生成</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-icon">🎯</div>
+        <div class="step-label">クイズ出題</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-icon">🏆</div>
+        <div class="step-label">結果発表</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Slide 4: トップページ ============ -->
+<section class="slide" id="slide-4">
+  <div class="content">
+    <span class="section-number">STEP 1</span>
+    <h2>🏠 トップページ</h2>
+    <p>シンプルなトップ画面。「ルームを作成する」または「ルームに参加する」から始められます。</p>
+    <div class="screenshot-wrap">
+      <img src="screenshots/01_top_page.png" alt="トップページ" />
+    </div>
+  </div>
+</section>
+
+<!-- ============ Slide 5: ルーム作成 ============ -->
+<section class="slide" id="slide-5">
+  <div class="content">
+    <span class="section-number">STEP 2</span>
+    <h2>✨ ルーム作成 & 参加</h2>
+    <div class="side-by-side">
+      <div>
+        <h3>ルーム作成（Host）</h3>
+        <p class="left">ニックネームを入力するだけでルームが作成されます。6文字のルームコードが自動生成されます。</p>
+        <div class="screenshot-wrap">
+          <img src="screenshots/02_create_room_page.png" alt="ルーム作成" />
+        </div>
+      </div>
+      <div>
+        <h3>ルーム参加</h3>
+        <p class="left">ルームコードを入力するか、開催中のルーム一覧から選んで参加できます。招待リンクにも対応。</p>
+        <div class="screenshot-wrap">
+          <img src="screenshots/04_join_room_page.png" alt="ルーム参加" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Slide 6: ロビー ============ -->
+<section class="slide" id="slide-6">
+  <div class="content">
+    <span class="section-number">STEP 3</span>
+    <h2>👥 ロビー — 参加者が集まる</h2>
+    <p>参加者のオンライン状態がリアルタイムに表示。Host は参加者管理やテーマ選択ができます。</p>
+    <div class="screenshot-wrap">
+      <img src="screenshots/05_lobby_3players.png" alt="ロビー（3人参加）" />
+    </div>
+    <p class="screenshot-caption">3人が参加したロビー画面（Host 視点）</p>
+  </div>
+</section>
+
+<!-- ============ Slide 7: プロフィール入力 ============ -->
+<section class="slide" id="slide-7">
+  <div class="content">
+    <span class="section-number">STEP 4</span>
+    <h2>📝 プロフィールを入力</h2>
+    <p>出身地・趣味・特技・好きな食べ物・意外な事実・自由記述 — 6つのフィールドに自己紹介を入力します。<br>この情報をもとに AI がクイズを生成します。</p>
+    <div class="side-by-side">
+      <div>
+        <h3>入力中の画面</h3>
+        <div class="screenshot-wrap">
+          <img src="screenshots/06_profile_input.png" alt="プロフィール入力中" />
+        </div>
+      </div>
+      <div>
+        <h3>全員入力完了</h3>
+        <div class="screenshot-wrap">
+          <img src="screenshots/07_lobby_all_submitted.png" alt="全員プロフィール送信済み" />
+        </div>
+        <p class="screenshot-caption">全員がプロフィール送信完了</p>
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      <p><strong>💡 Host の特別機能</strong></p>
+      <ul class="styled-list">
+        <li>「プロフィール項目を編集」— フィールド構成をカスタマイズ可能</li>
+        <li>「みんなで AI リクエスト」— AI にフィールド提案をリクエスト</li>
+        <li>参加者のキック（強制退出）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Slide 8: クイズ生成 ============ -->
+<section class="slide" id="slide-8">
+  <div class="content">
+    <span class="section-number">STEP 5</span>
+    <h2>🤖 AI がクイズを自動生成</h2>
+    <p>Host が「クイズを生成する」ボタンを押すと、Azure OpenAI (GPT) が参加者のプロフィールから<br>4択クイズ + ⭕❌クイズを自動生成します。</p>
+    <div class="side-by-side">
+      <div>
+        <h3>生成中…</h3>
+        <div class="screenshot-wrap">
+          <img src="screenshots/08_quiz_generating.png" alt="クイズ生成中" />
+        </div>
+      </div>
+      <div>
+        <h3>生成完了！</h3>
+        <div class="screenshot-wrap">
+          <img src="screenshots/09_quiz_ready.png" alt="クイズ生成完了" />
+        </div>
+        <p class="screenshot-caption">「クイズを開始する」ボタンが出現</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Slide 9: クイズ出題 ============ -->
+<section class="slide" id="slide-9">
+  <div class="content">
+    <span class="section-number">STEP 6</span>
+    <h2>🎯 クイズ出題 — みんなで回答！</h2>
+    <p>制限時間30秒以内に4択 or ⭕❌で回答。早く正解するほど高得点！</p>
+    <div class="side-by-side">
+      <div>
+        <h3>Host の画面</h3>
+        <div class="screenshot-wrap">
+          <img src="screenshots/10_quiz_playing_host.png" alt="クイズ出題中（Host）" />
+        </div>
+        <p class="screenshot-caption">タイマー、回答状況、参加者リストを表示</p>
+      </div>
+      <div>
+        <h3>ゲストの画面</h3>
+        <div class="screenshot-wrap">
+          <img src="screenshots/11_quiz_playing_guest.png" alt="クイズ出題中（ゲスト）" />
+        </div>
+        <p class="screenshot-caption">全員同じ問題がリアルタイムに表示</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Slide 10: 正解発表 ============ -->
+<section class="slide" id="slide-10">
+  <div class="content">
+    <span class="section-number">STEP 7</span>
+    <h2>✅ 正解発表 & スコアボード</h2>
+    <p>全員が回答（またはタイムアウト）すると正解が発表されます。解説付き！</p>
+    <div class="side-by-side">
+      <div>
+        <h3>正解発表画面</h3>
+        <div class="screenshot-wrap">
+          <img src="screenshots/12_quiz_revealing.png" alt="正解発表" />
+        </div>
+        <p class="screenshot-caption">正解ハイライト、解説、スコアボード</p>
+      </div>
+      <div>
+        <h3>「気になる👀」投票</h3>
+        <div class="screenshot-wrap">
+          <img src="screenshots/14_quiz_mid_game.png" alt="Q3正解発表" />
+        </div>
+        <p class="screenshot-caption">Q3の結果。正解・不正解がカラーで一目瞭然</p>
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      <p><strong>🎤 「気になる」インタビュー機能</strong></p>
+      <p>「気になる👀」ボタンで投票 → 50%以上で自動的にインタビューフェーズに遷移。<br>
+      クイズの答えについて本人に話を聞ける、盛り上がりポイント！</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Slide 11: 結果発表 ============ -->
+<section class="slide" id="slide-11">
+  <div class="content">
+    <span class="section-number">STEP 8</span>
+    <h2>🏆 結果発表！</h2>
+    <p>全問終了後、最終スコアボード・ハイライト・各問題の回答結果が表示されます。</p>
+    <div class="screenshot-wrap">
+      <img src="screenshots/16_result_page_full.png" alt="結果発表ページ" />
+    </div>
+    <p class="screenshot-caption">スコアボード、ハイライト（スピードスター・最難問）、全問題の回答結果一覧</p>
+  </div>
+</section>
+
+<!-- ============ Slide 12: テーマショーケース ============ -->
+<section class="slide" id="slide-12">
+  <div class="content">
+    <span class="section-number">THEMES</span>
+    <h2>🎨 5つのテーマで雰囲気を演出</h2>
+    <p>ルームの雰囲気に合わせてテーマを切り替え。色・アニメーション・エフェクトが一括で変わります。</p>
+
+    <div class="theme-tabs" id="themeTabs">
+      <button class="theme-tab active" data-theme="subtle">🎨 Subtle</button>
+      <button class="theme-tab" data-theme="fun">🎪 Fun</button>
+      <button class="theme-tab" data-theme="cyber">💻 Cyber</button>
+      <button class="theme-tab" data-theme="party">🎉 Party</button>
+      <button class="theme-tab" data-theme="sakura">🌸 Sakura</button>
+    </div>
+
+    <div id="themePanels">
+      <div class="theme-panel active" data-theme="subtle">
+        <p class="theme-desc">スレート / インディゴ基調。落ち着いた雰囲気のデフォルトテーマ。</p>
+        <div class="side-by-side">
+          <div class="screenshot-wrap"><img src="screenshots/theme_subtle_lobby.png" alt="Subtle ロビー" /></div>
+          <div class="screenshot-wrap"><img src="screenshots/theme_subtle_quiz.png" alt="Subtle クイズ" /></div>
+        </div>
+      </div>
+      <div class="theme-panel" data-theme="fun">
+        <p class="theme-desc">アンバー / オレンジ基調。ポップで明るい雰囲気。</p>
+        <div class="side-by-side">
+          <div class="screenshot-wrap"><img src="screenshots/theme_fun_lobby.png" alt="Fun ロビー" /></div>
+          <div class="screenshot-wrap"><img src="screenshots/theme_fun_guest.png" alt="Fun ゲスト" /></div>
+        </div>
+      </div>
+      <div class="theme-panel" data-theme="cyber">
+        <p class="theme-desc">ダークシアン / パープル基調。近未来的なダークモード。</p>
+        <div class="side-by-side">
+          <div class="screenshot-wrap"><img src="screenshots/theme_cyber_lobby.png" alt="Cyber ロビー" /></div>
+          <div class="screenshot-wrap"><img src="screenshots/theme_cyber_guest.png" alt="Cyber ゲスト" /></div>
+        </div>
+      </div>
+      <div class="theme-panel" data-theme="party">
+        <p class="theme-desc">フクシア / ピンク / バイオレット基調。華やかなパーティ向け。</p>
+        <div class="side-by-side">
+          <div class="screenshot-wrap"><img src="screenshots/theme_party_lobby.png" alt="Party ロビー" /></div>
+          <div class="screenshot-wrap"><img src="screenshots/theme_party_guest.png" alt="Party ゲスト" /></div>
+        </div>
+      </div>
+      <div class="theme-panel" data-theme="sakura">
+        <p class="theme-desc">ピンク / ローズ基調。桜をモチーフにしたテーマ。</p>
+        <div class="side-by-side">
+          <div class="screenshot-wrap"><img src="screenshots/theme_sakura_lobby.png" alt="Sakura ロビー" /></div>
+          <div class="screenshot-wrap"><img src="screenshots/theme_sakura_guest.png" alt="Sakura ゲスト" /></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Slide 13: 技術スタック ============ -->
+<section class="slide" id="slide-13">
+  <div class="content">
+    <span class="section-number">TECH STACK</span>
+    <h2>🔧 技術スタック</h2>
+
+    <table class="tech-table">
+      <thead>
+        <tr><th>レイヤー</th><th>技術</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Frontend</td><td><span class="tech-badge">React 19</span> + <span class="tech-badge">Vite</span> + <span class="tech-badge">Tailwind CSS v4</span></td></tr>
+        <tr><td>Backend</td><td><span class="tech-badge">Node.js</span> + <span class="tech-badge">Express</span> + <span class="tech-badge">Socket.IO v4</span></td></tr>
+        <tr><td>AI</td><td><span class="tech-badge">Azure OpenAI API</span> (GPT)</td></tr>
+        <tr><td>状態管理</td><td><span class="tech-badge">Zustand</span> (client) / InMemory Map (server)</td></tr>
+        <tr><td>バリデーション</td><td><span class="tech-badge">Zod</span></td></tr>
+        <tr><td>テスト</td><td><span class="tech-badge">Vitest</span> + <span class="tech-badge">Playwright</span></td></tr>
+        <tr><td>言語</td><td><span class="tech-badge">TypeScript</span> (全層 strict mode)</td></tr>
+        <tr><td>モノレポ</td><td><span class="tech-badge">npm workspaces</span> (shared / server / client)</td></tr>
+        <tr><td>インフラ</td><td><span class="tech-badge">Azure Container Apps</span> + <span class="tech-badge">Bicep</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ Slide 14: アーキテクチャ ============ -->
+<section class="slide" id="slide-14">
+  <div class="content">
+    <span class="section-number">ARCHITECTURE</span>
+    <h2>🏗️ アーキテクチャ — DDD + Ports & Adapters</h2>
+
+    <div class="arch-diagram">
+      <div class="arch-box">
+        <h4>🖥️ Client (React SPA)</h4>
+        <ul>
+          <li>Zustand (状態管理)</li>
+          <li>Socket.IO Client</li>
+          <li>Framer Motion</li>
+          <li>テーマエンジン</li>
+        </ul>
+      </div>
+      <div class="arch-connector">⇄</div>
+      <div class="arch-box">
+        <h4>⚙️ Server (Express)</h4>
+        <ul>
+          <li>Socket.IO Server</li>
+          <li>Application Layer</li>
+          <li>Domain Layer (DDD)</li>
+          <li>Infrastructure Layer</li>
+        </ul>
+      </div>
+      <div class="arch-connector">→</div>
+      <div class="arch-box">
+        <h4>🤖 Azure OpenAI</h4>
+        <ul>
+          <li>クイズ生成</li>
+          <li>プロフィール項目提案</li>
+          <li>Tool Use (構造化出力)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      <p><strong>📦 モノレポ構成</strong></p>
+      <ul class="styled-list">
+        <li><strong>packages/shared</strong> — 型定義・定数・バリデーションスキーマ（server/client 共通）</li>
+        <li><strong>packages/server</strong> — Express + Socket.IO サーバ（DDD: Room Context + Quiz Context）</li>
+        <li><strong>packages/client</strong> — React SPA（ページ・コンポーネント・テーマ）</li>
+      </ul>
+    </div>
+
+    <div class="highlight-box">
+      <p><strong>🧩 ドメインモデル（Bounded Context）</strong></p>
+      <ul class="styled-list">
+        <li><strong>Room Context</strong> — ルーム作成・参加者管理・Host 権限・フェーズ遷移</li>
+        <li><strong>Quiz Context</strong> — クイズ生成・出題進行・回答受付・スコア計算</li>
+        <li>2つのコンテキストは <code>roomCode</code> で疎結合に連携</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Slide 15: 主な機能 ============ -->
+<section class="slide" id="slide-15">
+  <div class="content">
+    <span class="section-number">FEATURES</span>
+    <h2>✨ 主な機能・こだわりポイント</h2>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">🔄</div>
+        <h3>リアルタイム同期</h3>
+        <p>Socket.IO による WebSocket 通信。参加者の入退室・回答状況・スコアがリアルタイムに同期。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🚪</div>
+        <h3>途中参加サポート</h3>
+        <p>クイズ進行中でもルームに参加可能。次の問題から回答に参加でき、スコアは参加問数ベースで計算。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">⏱️</div>
+        <h3>タイマー同期</h3>
+        <p>サーバの <code>timerEndsAt</code> を基準に、全端末で正確にカウントダウン。requestAnimationFrame ベース。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🎨</div>
+        <h3>5種類のテーマ</h3>
+        <p>subtle / fun / party / cyber / sakura。全33色 + 10種アニメーション variants で統一管理。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">✉️</div>
+        <h3>ルーム招待</h3>
+        <p>他のルームへ招待を送信。フローティング通知でワンクリック参加が可能。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">😄</div>
+        <h3>リアクション</h3>
+        <p>👏❤️😂🎉 などのリアクションを送信。パーティクルエフェクトで画面が盛り上がる！</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🎤</div>
+        <h3>インタビュー機能</h3>
+        <p>「気になる👀」投票50%以上で自動遷移。クイズの答えについて本人に話を聞けるフェーズ。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🛡️</div>
+        <h3>セキュリティ</h3>
+        <p>入力サニタイズ、レート制限、Zod バリデーション、XSS 対策を全層で実施。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Slide 16: まとめ ============ -->
+<section class="slide slide-title" id="slide-16">
+  <div class="content" style="text-align: center;">
+    <div class="emoji-hero">🎊</div>
+    <h2 style="color: #e0e7ff; font-size: 2.5rem;">ぜひ使ってみてください！</h2>
+    <p style="color: #a5b4fc; font-size: 1.2rem; margin-top: 1rem;">
+      ルームを作って、プロフィールを入力して、<br>
+      AI が生成するクイズで盛り上がりましょう 🎉
+    </p>
+    <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(99, 102, 241, 0.1); border-radius: 12px; display: inline-block;">
+      <p style="color: #c7d2fe; font-size: 1rem; margin: 0;">
+        最大 <strong>20人</strong> 参加 ・ <strong>15〜20分</strong> で完了 ・ インストール <strong>不要</strong>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Navigation Script ============ -->
+<script>
+  // Build navigation dots
+  const slides = document.querySelectorAll('.slide');
+  const navDots = document.getElementById('navDots');
+
+  slides.forEach((slide, i) => {
+    const dot = document.createElement('button');
+    dot.classList.add('nav-dot');
+    dot.title = `Slide ${i + 1}`;
+    dot.addEventListener('click', () => {
+      slide.scrollIntoView({ behavior: 'smooth' });
+    });
+    navDots.appendChild(dot);
+  });
+
+  // Highlight active dot on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const idx = Array.from(slides).indexOf(entry.target);
+        document.querySelectorAll('.nav-dot').forEach((d, i) => {
+          d.classList.toggle('active', i === idx);
+        });
+      }
+    });
+  }, { threshold: 0.5 });
+
+  slides.forEach(s => observer.observe(s));
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    const dots = document.querySelectorAll('.nav-dot');
+    const activeIdx = Array.from(dots).findIndex(d => d.classList.contains('active'));
+
+    if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+      e.preventDefault();
+      const next = Math.min(activeIdx + 1, slides.length - 1);
+      slides[next].scrollIntoView({ behavior: 'smooth' });
+    } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+      e.preventDefault();
+      const prev = Math.max(activeIdx - 1, 0);
+      slides[prev].scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+
+  // Theme tab switching
+  document.getElementById('themeTabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('.theme-tab');
+    if (!btn) return;
+    const theme = btn.dataset.theme;
+    document.querySelectorAll('.theme-tab').forEach(t => t.classList.toggle('active', t.dataset.theme === theme));
+    document.querySelectorAll('.theme-panel').forEach(p => p.classList.toggle('active', p.dataset.theme === theme));
+  });
+</script>
+
+</body>
+</html>

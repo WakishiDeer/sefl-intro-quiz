@@ -6,3 +6,6 @@ dist/
 .azure
 
 test-results/
+
+# temp screenshots (canonical copies in docs/presentation/screenshots/)
+/screenshots/
