@@ -7,7 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **絵文字が黒色（モノクロ）で表示される問題を修正**: Web フォントに Noto Sans JP（Google Fonts CDN）を導入し、フォントスタックでカラー絵文字フォント（`Segoe UI Emoji` / `Apple Color Emoji` / `Noto Color Emoji`）を `system-ui` より前に配置。Windows 環境で `Segoe UI` がモノクロ絵文字を描画する問題を解消し、SpotlightEffect の decorEmojis 等がカラー表示されるようになった
+
+- **AI リクエスト採用後にプロフィール提出済み人数が更新されない不具合を修正**: フィールド変更でプロフィールが無効化された際、`participants[*].hasProfile` がクリアされず「プロフィール提出済み: N人」が旧値のまま表示される問題を修正。`setProfileFields` で `profilesInvalidated: true` の場合、全参加者の `hasProfile` を `false` にリセットするようにした
+
+### Added
+
+- **スピードボーナス & ストリーク倍率スコアリング**: ゲーム性を高める新スコアリングシステムを導入
+  - **スピードボーナス**: 早い回答ほど高スコア。正解時の最低 100pt + 残り時間に比例して最大 900pt のボーナス（合計最大 1,000pt/問）
+  - **連続正解ストリーク倍率**: 連続正解でスコアに倍率が適用される（2連: x1.2、3連: x1.5、4連: x1.8、5連以上: x2.0）
+  - 回答結果バッジに獲得ポイント・ストリーク表示（🔥x1.5 等）を追加
+  - スコアボードに最長連続正解数（🔥列）を追加
+
 ### Changed
+
+- **party テーマを「ネオンナイト / ディスコパーティー」にリデザイン**:
+  - カラースキームを fuchsia/pink → **violet (パープル) + amber (ゴールド)** に変更し、sakura テーマとの色域重複を解消
+  - 背景エフェクト: 浮遊する丸ドット (`AmbientParticles`) → **`PartyLights`** — 回転するカラフルなライトビーム + ダイヤモンド型のディスコボール反射光
+  - 正解エフェクト: 汎用紙吹雪 (`ConfettiEffect`) → **`FireworksBurst`** — 画面の複数箇所で花火が時間差で打ち上がりパーティクルが軌跡を残しながらフェードアウト + 祝福テキスト
+  - インタビュースポットライト: fuchsia → violet + amber ゴールドグローに変更
 
 - **スピーチタイム（interviewing フェーズ）の自動遷移を廃止**: 60秒タイマー満了による自動的なフェーズ遷移を削除し、Host が手動で「次の問題へ」を押すまでスピーチタイムが継続するように変更
 
