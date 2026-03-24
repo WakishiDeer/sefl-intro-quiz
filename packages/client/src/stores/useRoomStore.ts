@@ -117,11 +117,16 @@ export const useRoomStore = create<RoomState>((set) => ({
     setHost: (isHost) => set({ isHost }),
 
     setProfileFields: (fields, profilesInvalidated) =>
-        set({
+        set((state) => ({
             profileFields: fields,
             profileInvalidated: profilesInvalidated,
-            ...(profilesInvalidated ? { myProfile: null } : {}),
-        }),
+            ...(profilesInvalidated
+                ? {
+                      myProfile: null,
+                      participants: state.participants.map((p) => ({ ...p, hasProfile: false })),
+                  }
+                : {}),
+        })),
 
     setMyProfile: (profile) => set({ myProfile: profile }),
 
