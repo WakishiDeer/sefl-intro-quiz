@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/*
+ * フォント設定:
+ * - Noto Sans JP をベースフォントに採用（Google Fonts CDN）
+ * - カラー絵文字フォントを system-ui より前に配置し、
+ *   Windows で Segoe UI がモノクロ絵文字を描画する問題を回避
+ */
+@theme {
+    --font-sans: "Noto Sans JP",
+        "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
+        ui-sans-serif, system-ui, sans-serif;
+}
+
 /* トースト通知のフェードインアニメーション */
 @keyframes fade-in {
     from {
