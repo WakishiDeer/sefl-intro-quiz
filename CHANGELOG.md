@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-03-24
+
+### Added
+
+- **プロフィール項目プリセット機能**: ホストがロビーでワンタップで項目セットを切り替え可能。20種のプリセットを用意
+  - 基本の自己紹介、飲み会・懇親会、はじめまして、もっと深く知りたい、将来の目標・夢、思い出・過去の話、会社・仕事、ベストバイ・推しアイテム、グルメ・食べ物、旅行・おでかけ、エンタメ・推し活、もしも・妄想、趣味・オタ活、健康・ライフスタイル、ペット・動物、子ども時代、特技・隠れた才能、年末年始・振り返り、ランダム・おもしろ、価値観・哲学
+  - shared パッケージに `ProfileFieldPreset` / `ProfileFieldPresetId` 型と `PROFILE_FIELD_PRESETS` カタログ、`getPresetById()` ヘルパーを追加
+  - `ProfileFieldEditor` にプリセット選択 UI（チップ型トグル）を追加。選択後も手動編集可能
+  - プリセットカタログの構造健全性テスト（147テスト）を追加
+
+- **ルーム招待機能**: 他のルームの参加者に「こっちのルームに来て！」と招待を送信する機能を追加
+  - ホストがロビー画面から招待メッセージ（最大100文字）を入力して全アクティブルームに送信可能
+  - 招待を受信したルームの参加者にはフローティングバナーで通知が表示される
+  - バナーから「参加する」をクリックすると現在のルームを退出し、招待元ルームの参加ページへ遷移
+  - スパム防止のためルームごとに60秒のクールダウン制限あり
+  - 新規 Socket.IO イベント: `room:invite` (C2S), `room:invitation` (S2C)
+
 ### Fixed
 
 - **絵文字が黒色（モノクロ）で表示される問題を修正**: Web フォントに Noto Sans JP（Google Fonts CDN）を導入し、フォントスタックでカラー絵文字フォント（`Segoe UI Emoji` / `Apple Color Emoji` / `Noto Color Emoji`）を `system-ui` より前に配置。Windows 環境で `Segoe UI` がモノクロ絵文字を描画する問題を解消し、SpotlightEffect の decorEmojis 等がカラー表示されるようになった

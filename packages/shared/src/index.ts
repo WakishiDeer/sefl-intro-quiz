@@ -61,6 +61,10 @@ export type {
     AIRequestResultPayload,
     AIRequestAdoptPayload,
     AIRequestCancelledPayload,
+    SendInvitePayload,
+    InvitationReceivedPayload,
+    ProfileFieldPreset,
+    ProfileFieldPresetId,
 } from "./types/index.js";
 
 // 定数
@@ -110,7 +114,13 @@ export {
     ANIMATION_THEMES,
     DEFAULT_ANIMATION_THEME,
     ANIMATION_THEME_META,
+    INVITE_MAX_MESSAGE_LENGTH,
+    INVITE_COOLDOWN_MS,
+    INVITE_BANNER_AUTO_DISMISS_MS,
 } from "./constants.js";
+
+// プロフィール項目プリセット
+export { PROFILE_FIELD_PRESETS, getPresetById } from "./profileFieldPresets.js";
 
 // クイズ問題数計算
 export { calculateQuizCount } from "./quizCount.js";
@@ -145,6 +155,7 @@ export {
     createAIOutputSchema,
     AIRequestSubmitSchema,
     AIRequestAdoptSchema,
+    SendInviteSchema,
 } from "./validation.js";
 export type {
     NicknameInput,
