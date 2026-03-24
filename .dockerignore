@@ -5,6 +5,7 @@ dist
 .env.*
 *.md
 docs/
+!docs/presentation/
 .vscode/
 .azure/
 .specify/
