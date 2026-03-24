@@ -111,6 +111,7 @@ export function useSocket(): void {
                             answeredCount: p.answeredCount,
                             totalQuestions: p.totalQuestions,
                             isLateJoiner: false,
+                            maxStreak: 0,
                             rank: i + 1,
                         }))
                         .sort((a, b) => b.score - a.score)

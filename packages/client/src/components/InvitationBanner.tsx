@@ -29,6 +29,7 @@ export function InvitationBanner() {
 
         for (let i = 0; i < invitations.length; i++) {
             const inv = invitations[i];
+            if (!inv) continue;
             const key = `${inv.fromRoomCode}-${i}`;
 
             if (!timers.has(key)) {
