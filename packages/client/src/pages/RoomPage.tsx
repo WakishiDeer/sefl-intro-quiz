@@ -23,6 +23,7 @@ import type { RoomErrorPayload } from "@self-intro-quiz/shared";
 import { LobbyView } from "../components/LobbyView";
 import { QuizView } from "../components/QuizView";
 import { ResultView } from "../components/ResultView";
+import { InvitationBanner } from "../components/InvitationBanner";
 
 /** セッション復帰の最大待ち時間（ms）。claim + 接続 + room:join の合計 */
 const RECONNECT_TIMEOUT_MS = 8000;
@@ -311,6 +312,9 @@ export function RoomPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* 他のルームからの招待通知 */}
+            <InvitationBanner />
         </div>
     );
 }

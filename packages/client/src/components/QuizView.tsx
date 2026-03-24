@@ -15,6 +15,7 @@ import { ChoiceButton } from "./ChoiceButton.js";
 import { Scoreboard } from "./Scoreboard.js";
 import { ParticipantList } from "./ParticipantList.js";
 import { AnswerResultList } from "./AnswerResultList.js";
+import { InviteButton } from "./InviteButton.js";
 
 export function QuizView() {
   const phase = useRoomStore((s) => s.phase);
@@ -241,14 +242,17 @@ export function QuizView() {
         )}
       </div>
 
-      {/* サイドバー: 参加者一覧 */}
-      <div className="w-full lg:w-64 shrink-0">
+      {/* サイドバー: 参加者一覧 + 招待 */}
+      <div className="w-full lg:w-64 shrink-0 space-y-3">
         <div className={`rounded-xl ${theme.colors.cardBg} p-4 shadow lg:sticky lg:top-4`}>
           <ParticipantList
             mode="quiz"
             currentNickname={nickname}
             answeredNicknames={answeredNicknames}
           />
+          <div className="mt-3">
+            <InviteButton compact />
+          </div>
         </div>
       </div>
     </div>

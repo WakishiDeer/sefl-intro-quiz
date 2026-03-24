@@ -248,3 +248,16 @@ export const RATE_LIMIT_HTTP_PER_MIN = 100;
 
 /** レートリミットのウィンドウ */
 export const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1分
+
+// ============================================================
+// ルーム招待
+// ============================================================
+
+/** 招待メッセージの最大文字数 */
+export const INVITE_MAX_MESSAGE_LENGTH = 100;
+
+/** 同一ルームからの招待送信クールダウン（ms） */
+export const INVITE_COOLDOWN_MS = 60 * 1000; // 1分
+
+/** 招待バナーの自動消去時間（ms） */
+export const INVITE_BANNER_AUTO_DISMISS_MS = 15 * 1000; // 15秒

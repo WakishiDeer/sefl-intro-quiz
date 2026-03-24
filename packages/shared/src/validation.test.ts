@@ -20,8 +20,9 @@ import {
     AIRequestAdoptSchema,
     createAIOutputSchema,
     SetThemeSchema,
+    SendInviteSchema,
 } from "./validation.js";
-import { DEFAULT_PROFILE_FIELDS, MAX_PROFILE_FIELDS } from "./constants.js";
+import { DEFAULT_PROFILE_FIELDS, MAX_PROFILE_FIELDS, INVITE_MAX_MESSAGE_LENGTH } from "./constants.js";
 import type { ProfileFieldDefinition } from "./types/profile.js";
 
 // ============================================================
@@ -643,6 +644,37 @@ describe("SetThemeSchema", () => {
 
     it("theme フィールドが欠けている場合拒否する", () => {
         const result = SetThemeSchema.safeParse({});
+        expect(result.success).toBe(false);
+    });
+});
+
+// ============================================================
+// SendInviteSchema
+// ============================================================
+
+describe("SendInviteSchema", () => {
+    it("有効な招待メッセージを受け付ける", () => {
+        const result = SendInviteSchema.safeParse({ message: "面白い話題があるよ！" });
+        expect(result.success).toBe(true);
+    });
+
+    it("空文字列を拒否する", () => {
+        const result = SendInviteSchema.safeParse({ message: "" });
+        expect(result.success).toBe(false);
+    });
+
+    it("最大長のメッセージを受け付ける", () => {
+        const result = SendInviteSchema.safeParse({ message: "あ".repeat(INVITE_MAX_MESSAGE_LENGTH) });
+        expect(result.success).toBe(true);
+    });
+
+    it("最大長を超えるメッセージを拒否する", () => {
+        const result = SendInviteSchema.safeParse({ message: "あ".repeat(INVITE_MAX_MESSAGE_LENGTH + 1) });
+        expect(result.success).toBe(false);
+    });
+
+    it("message フィールドが欠けている場合拒否する", () => {
+        const result = SendInviteSchema.safeParse({});
         expect(result.success).toBe(false);
     });
 });

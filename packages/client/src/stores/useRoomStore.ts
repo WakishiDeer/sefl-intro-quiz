@@ -12,6 +12,7 @@ import type {
     RoomStateSync,
     ProfileFieldDefinition,
     AnimationThemeName,
+    InvitationReceivedPayload,
 } from "@self-intro-quiz/shared";
 import { DEFAULT_PROFILE_FIELDS, DEFAULT_ANIMATION_THEME } from "@self-intro-quiz/shared";
 
@@ -48,6 +49,9 @@ interface RoomState {
     // 自分の送信済みプロフィール（ロビー復帰時の復元用）
     myProfile: Record<string, string> | null;
 
+    // 受信した招待
+    receivedInvitations: InvitationReceivedPayload[];
+
     // アクション
     setConnected: (connected: boolean) => void;
     setCredentials: (roomCode: string, nickname: string) => void;
@@ -65,6 +69,8 @@ interface RoomState {
     setAIRequestOptedOut: (optedOut: boolean) => void;
     resetAIRequest: () => void;
     clearProfileInvalidated: () => void;
+    addInvitation: (invitation: InvitationReceivedPayload) => void;
+    dismissInvitation: (index: number) => void;
     reset: () => void;
 }
 
@@ -87,6 +93,7 @@ const initialState = {
     aiRequestOptedOut: false,
     profileInvalidated: false,
     myProfile: null as Record<string, string> | null,
+    receivedInvitations: [] as InvitationReceivedPayload[],
 };
 
 export const useRoomStore = create<RoomState>((set) => ({
@@ -122,9 +129,9 @@ export const useRoomStore = create<RoomState>((set) => ({
             profileInvalidated: profilesInvalidated,
             ...(profilesInvalidated
                 ? {
-                      myProfile: null,
-                      participants: state.participants.map((p) => ({ ...p, hasProfile: false })),
-                  }
+                    myProfile: null,
+                    participants: state.participants.map((p) => ({ ...p, hasProfile: false })),
+                }
                 : {}),
         })),
 
@@ -166,6 +173,16 @@ export const useRoomStore = create<RoomState>((set) => ({
         }),
 
     clearProfileInvalidated: () => set({ profileInvalidated: false }),
+
+    addInvitation: (invitation) =>
+        set((state) => ({
+            receivedInvitations: [...state.receivedInvitations, invitation],
+        })),
+
+    dismissInvitation: (index) =>
+        set((state) => ({
+            receivedInvitations: state.receivedInvitations.filter((_, i) => i !== index),
+        })),
 
     reset: () => set(initialState),
 }));

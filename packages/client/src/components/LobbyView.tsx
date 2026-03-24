@@ -18,6 +18,7 @@ import { ProfileFieldEditor } from "./ProfileFieldEditor.js";
 import { AIRequestModal } from "./AIRequestModal.js";
 import { AIRequestResultPanel } from "./AIRequestResultPanel.js";
 import { ThemePicker } from "./ThemePicker.js";
+import { InviteButton } from "./InviteButton.js";
 import { useAnimationTheme } from "../animations/useAnimationTheme.js";
 import { useNavigate } from "react-router";
 
@@ -207,8 +208,9 @@ export function LobbyView() {
             </div>
           )}
 
-          {/* 全員: 退出ボタン */}
-          <div className={isHost ? "mt-2" : "mt-4"}>
+          {/* 全員: ルーム招待 + 退出ボタン */}
+          <div className={isHost ? "mt-2 space-y-2" : "mt-4 space-y-2"}>
+            {phase === "lobby" && <InviteButton />}
             <button
               onClick={handleLeaveRoom}
               className={`w-full rounded-lg border px-4 py-2 text-sm transition ${theme.colors.buttonGhost}`}

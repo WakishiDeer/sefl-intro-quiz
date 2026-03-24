@@ -22,6 +22,7 @@ import {
     MAX_QUESTIONS,
     MIN_QUESTIONS,
     ANIMATION_THEMES,
+    INVITE_MAX_MESSAGE_LENGTH,
 } from "./constants.js";
 import type { ProfileFieldDefinition } from "./types/profile.js";
 
@@ -204,6 +205,18 @@ export const AIRequestAdoptSchema = z.object({
         .array(ProfileFieldDefinitionSchema)
         .min(MIN_PROFILE_FIELDS, `項目は${MIN_PROFILE_FIELDS}個以上必要です`)
         .max(MAX_PROFILE_FIELDS, `項目は${MAX_PROFILE_FIELDS}個以下です`),
+});
+
+// ============================================================
+// ルーム招待 バリデーション
+// ============================================================
+
+/** room:invite ペイロード */
+export const SendInviteSchema = z.object({
+    message: z
+        .string()
+        .min(1, "メッセージは必須です")
+        .max(INVITE_MAX_MESSAGE_LENGTH, `メッセージは${INVITE_MAX_MESSAGE_LENGTH}文字以下`),
 });
 
 // ============================================================

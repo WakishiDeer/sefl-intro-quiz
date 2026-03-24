@@ -15,8 +15,10 @@ import {
     SubmitProfileSchema,
     UpdateFieldsSchema,
     SetThemeSchema,
+    SendInviteSchema,
     MAX_PARTICIPANTS,
     DISCONNECT_REMOVE_TIMEOUT_MS,
+    INVITE_COOLDOWN_MS,
     createProfileSchema,
 } from "@self-intro-quiz/shared";
 import type {
@@ -35,6 +37,7 @@ import type {
     RoomSummary,
     RoomListPayload,
     AnimationThemeName,
+    InvitationReceivedPayload,
 } from "@self-intro-quiz/shared";
 import { RoomAggregate, RoomDomainError } from "../domain/room/RoomAggregate.js";
 import type { RoomRepository } from "../domain/room/RoomRepository.js";
@@ -63,6 +66,11 @@ const socketSessions = new Map<string, SocketSession>();
 // 通常のゲームルーム（英数字コード）と名前が衝突しないようにプレフィックス付き
 // ============================================================
 const ROOM_LIST_META_ROOM = "__room_list__";
+
+// ============================================================
+// 招待クールダウン管理（participantId → 最終送信時刻）
+// ============================================================
+const inviteCooldowns = new Map<string, number>();
 
 // ============================================================
 // Helper: ルーム一覧ブロードキャスト
@@ -679,6 +687,65 @@ export function registerRoomHandlers(
             logger.info(
                 { roomCode: session.roomCode, theme: parsed.theme },
                 "Animation theme changed",
+            );
+        } catch (error) {
+            emitError(socket, error);
+        }
+    });
+
+    // ----------------------------------------------------------
+    // room:invite——他のルームに招待を送信（全参加者、クールダウンあり）
+    // ----------------------------------------------------------
+    socket.on(C2S_EVENTS.ROOM_INVITE, (payload: unknown) => {
+        try {
+            const parsed = SendInviteSchema.parse(payload);
+            const session = socketSessions.get(socket.id);
+            if (!session) {
+                socket.emit(S2C_EVENTS.ROOM_ERROR, {
+                    code: "NOT_IN_ROOM",
+                    message: "ルームに参加していません",
+                } satisfies RoomErrorPayload);
+                return;
+            }
+
+            const room = roomRepo.findByCode(session.roomCode);
+            if (!room) return;
+
+            const roomAgg = RoomAggregate.fromRoom(room);
+
+            // クールダウンチェック
+            const now = Date.now();
+            const lastInvite = inviteCooldowns.get(session.participantId) ?? 0;
+            if (now - lastInvite < INVITE_COOLDOWN_MS) {
+                const remainSec = Math.ceil((INVITE_COOLDOWN_MS - (now - lastInvite)) / 1000);
+                socket.emit(S2C_EVENTS.ROOM_ERROR, {
+                    code: "INVITE_COOLDOWN",
+                    message: `招待はあと ${remainSec} 秒後に送信できます`,
+                } satisfies RoomErrorPayload);
+                return;
+            }
+
+            inviteCooldowns.set(session.participantId, now);
+
+            const sender = roomAgg.getParticipant(session.participantId);
+            const message = sanitize(parsed.message);
+
+            const invitation: InvitationReceivedPayload = {
+                fromRoomCode: session.roomCode,
+                senderNickname: sender?.nickname ?? "",
+                message,
+                participantCount: roomAgg.participantCount,
+            };
+
+            // 他の全ルームのソケットに招待を送信（自分のルームは除外）
+            for (const [code] of roomRepo.findAll()) {
+                if (code === session.roomCode) continue;
+                io.to(code).emit(S2C_EVENTS.ROOM_INVITATION, invitation);
+            }
+
+            logger.info(
+                { roomCode: session.roomCode, message },
+                "Room invitation sent",
             );
         } catch (error) {
             emitError(socket, error);

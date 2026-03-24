@@ -28,6 +28,7 @@ import type {
     AIRequestStatusPayload,
     AIRequestResultPayload,
     AIRequestCancelledPayload,
+    InvitationReceivedPayload,
 } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { useQuizStore } from "../stores/useQuizStore.js";
@@ -272,6 +273,11 @@ export function useSocket(): void {
             useRoomStore.getState().setAnimationTheme(payload.theme as import("@self-intro-quiz/shared").AnimationThemeName);
         };
 
+        // ルーム招待受信
+        const onInvitationReceived = (payload: InvitationReceivedPayload) => {
+            useRoomStore.getState().addInvitation(payload);
+        };
+
         // ロビー復帰: クイズ終了後にロビーに戻る
         const onBackToLobby = (payload: RoomStateSync) => {
             // クイズ状態をリセット
@@ -359,6 +365,7 @@ export function useSocket(): void {
         socket.on(S2C_EVENTS.AI_REQUEST_CANCELLED, onAIRequestCancelled);
         socket.on(S2C_EVENTS.AI_REQUEST_GENERATING, onAIRequestGenerating);
         socket.on(S2C_EVENTS.ROOM_THEME_CHANGED, onThemeChanged);
+        socket.on(S2C_EVENTS.ROOM_INVITATION, onInvitationReceived);
         socket.on(S2C_EVENTS.QUIZ_GENERATING, onQuizGenerating);
         socket.on(S2C_EVENTS.QUIZ_READY, onQuizReady);
         socket.on(S2C_EVENTS.QUIZ_GENERATE_FAILED, onQuizGenerateFailed);
@@ -388,6 +395,7 @@ export function useSocket(): void {
             socket.off(S2C_EVENTS.AI_REQUEST_CANCELLED, onAIRequestCancelled);
             socket.off(S2C_EVENTS.AI_REQUEST_GENERATING, onAIRequestGenerating);
             socket.off(S2C_EVENTS.ROOM_THEME_CHANGED, onThemeChanged);
+            socket.off(S2C_EVENTS.ROOM_INVITATION, onInvitationReceived);
             socket.off(S2C_EVENTS.QUIZ_GENERATING, onQuizGenerating);
             socket.off(S2C_EVENTS.QUIZ_READY, onQuizReady);
             socket.off(S2C_EVENTS.QUIZ_GENERATE_FAILED, onQuizGenerateFailed);

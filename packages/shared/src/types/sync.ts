@@ -355,3 +355,25 @@ export interface AIRequestCancelledPayload {
     /** 終了理由。cancelled = ホストがキャンセル、adopted = ホストが採用、discarded = ホストが破棄 */
     reason: "cancelled" | "adopted" | "discarded";
 }
+
+// ============================================================
+// ルーム招待
+// ============================================================
+
+/** room:invite (C2S) ペイロード — 他のルームに招待を送信 */
+export interface SendInvitePayload {
+    /** 招待メッセージ（例: 「旅行好きが集まってるよ！一緒に語ろう」） */
+    message: string;
+}
+
+/** room:invitation (S2C) ペイロード — 他のルームからの招待通知 */
+export interface InvitationReceivedPayload {
+    /** 招待元のルームコード */
+    fromRoomCode: string;
+    /** 招待を送った参加者のニックネーム */
+    senderNickname: string;
+    /** 招待メッセージ */
+    message: string;
+    /** 招待元ルームの参加者数 */
+    participantCount: number;
+}
