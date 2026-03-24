@@ -2,7 +2,7 @@
  * types/index.ts — 型定義のバレルエクスポート
  */
 
-export type { Profile, ProfileFieldDefinition } from "./profile.js";
+export type { Profile, ProfileFieldDefinition, ProfileFieldPreset, ProfileFieldPresetId } from "./profile.js";
 
 export type {
     RoomPhase,
@@ -63,4 +63,6 @@ export type {
     AIRequestResultPayload,
     AIRequestAdoptPayload,
     AIRequestCancelledPayload,
+    SendInvitePayload,
+    InvitationReceivedPayload,
 } from "./sync.js";

@@ -17,6 +17,8 @@ import {
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { Timer } from "./Timer.js";
 import { useAnimationTheme } from "../animations/useAnimationTheme.js";
+import { ChipGroup } from "./ChipGroup.js";
+import type { ChipItem } from "./ChipGroup.js";
 
 /**
  * Fisher-Yates シャッフルで配列からランダムに count 個を選ぶ。
@@ -63,6 +65,12 @@ export function AIRequestModal({ onClose }: Props) {
     // シャッフル後も選択済みプリセットが新しい表示に含まれていれば維持される
     // 含まれなくなったプリセットの選択は有効なまま送信される（非表示でも問題ない）
   }, []);
+
+  /** ChipGroup 用に整形 */
+  const presetChips: ChipItem[] = useMemo(
+    () => displayedPresets.map((p) => ({ key: p, label: p })),
+    [displayedPresets],
+  );
 
   const togglePreset = useCallback((preset: string) => {
     setSelectedPresets((prev) =>
@@ -176,22 +184,11 @@ export function AIRequestModal({ onClose }: Props) {
                   🔀 別の候補
                 </button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {displayedPresets.map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => togglePreset(preset)}
-                    className={`rounded-full px-3 py-1.5 text-xs transition ${
-                      selectedPresets.includes(preset)
-                        ? theme.colors.chipSelected
-                        : theme.colors.chipDefault
-                    }`}
-                  >
-                    {preset}
-                  </button>
-                ))}
-              </div>
+              <ChipGroup
+                items={presetChips}
+                selected={selectedPresets}
+                onSelect={togglePreset}
+              />
               {/* 非表示だが選択済みのプリセットがあれば表示 */}
               {selectedPresets.filter((p) => !displayedPresets.includes(p)).length > 0 && (
                 <p className={`mt-1.5 text-xs ${theme.colors.textAccent}`}>

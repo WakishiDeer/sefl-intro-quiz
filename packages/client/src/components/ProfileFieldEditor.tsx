@@ -3,9 +3,10 @@
  *
  * ホスト専用。ロビーフェーズでプロフィール入力項目を追加・削除・編集する。
  * 1〜10 個の項目を自由に設定可能。
+ * プリセットからワンタップで項目セットを読み込むことも可能。
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { socket } from "../lib/socket.js";
 import {
   C2S_EVENTS,
@@ -13,10 +14,13 @@ import {
   MAX_PROFILE_FIELDS,
   MAX_PROFILE_FIELD_LABEL_LENGTH,
   MAX_PROFILE_FIELD_PLACEHOLDER_LENGTH,
+  PROFILE_FIELD_PRESETS,
 } from "@self-intro-quiz/shared";
-import type { ProfileFieldDefinition } from "@self-intro-quiz/shared";
+import type { ProfileFieldDefinition, ProfileFieldPresetId } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { useAnimationTheme } from "../animations/useAnimationTheme.js";
+import { ChipGroup } from "./ChipGroup.js";
+import type { ChipItem } from "./ChipGroup.js";
 
 interface Props {
   onClose: () => void;
@@ -28,13 +32,36 @@ export function ProfileFieldEditor({ onClose }: Props) {
     () => currentFields.map((f) => ({ ...f })),
   );
   const [error, setError] = useState<string | null>(null);
+  /** 現在選択中のプリセット ID（手動編集すると null に戻る） */
+  const [activePresetId, setActivePresetId] = useState<ProfileFieldPresetId | null>(() => {
+    // 初期表示時に現在のフィールドがどのプリセットに一致するか検出
+    const match = PROFILE_FIELD_PRESETS.find((p) => {
+      if (p.fields.length !== currentFields.length) return false;
+      return p.fields.every((pf, i) => {
+        const cf = currentFields[i];
+        return cf && pf.id === cf.id && pf.label === cf.label;
+      });
+    });
+    return match?.id ?? null;
+  });
   const theme = useAnimationTheme();
+
+  /** ChipGroup 用のプリセット一覧 */
+  const presetChips: ChipItem[] = useMemo(
+    () => PROFILE_FIELD_PRESETS.map((p) => ({
+      key: p.id,
+      label: `${p.icon} ${p.label}`,
+      title: p.description,
+    })),
+    [],
+  );
 
   const canAdd = fields.length < MAX_PROFILE_FIELDS;
   const canRemove = fields.length > MIN_PROFILE_FIELDS;
 
   const handleFieldChange = useCallback(
     (index: number, key: keyof ProfileFieldDefinition, value: string) => {
+      setActivePresetId(null);
       setFields((prev) => {
         const next = [...prev];
         const field = next[index];
@@ -52,6 +79,7 @@ export function ProfileFieldEditor({ onClose }: Props) {
 
   const handleAdd = useCallback(() => {
     if (!canAdd) return;
+    setActivePresetId(null);
     const newId = `field_${Date.now()}`;
     setFields((prev) => [
       ...prev,
@@ -62,6 +90,7 @@ export function ProfileFieldEditor({ onClose }: Props) {
   const handleRemove = useCallback(
     (index: number) => {
       if (!canRemove) return;
+      setActivePresetId(null);
       setFields((prev) => prev.filter((_, i) => i !== index));
     },
     [canRemove],
@@ -69,6 +98,7 @@ export function ProfileFieldEditor({ onClose }: Props) {
 
   const handleMoveUp = useCallback((index: number) => {
     if (index === 0) return;
+    setActivePresetId(null);
     setFields((prev) => {
       const next = [...prev];
       [next[index - 1], next[index]] = [next[index]!, next[index - 1]!];
@@ -80,6 +110,7 @@ export function ProfileFieldEditor({ onClose }: Props) {
     (index: number) => {
       setFields((prev) => {
         if (index >= prev.length - 1) return prev;
+        setActivePresetId(null);
         const next = [...prev];
         [next[index], next[index + 1]] = [next[index + 1]!, next[index]!];
         return next;
@@ -87,6 +118,15 @@ export function ProfileFieldEditor({ onClose }: Props) {
     },
     [],
   );
+
+  /** プリセットを適用してフィールドを置き換える */
+  const handleApplyPreset = useCallback((presetId: ProfileFieldPresetId) => {
+    const preset = PROFILE_FIELD_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    setFields(preset.fields.map((f) => ({ ...f })));
+    setActivePresetId(presetId);
+    setError(null);
+  }, []);
 
   const handleSave = () => {
     setError(null);
@@ -131,6 +171,18 @@ export function ProfileFieldEditor({ onClose }: Props) {
         <p className={`mb-4 text-sm ${theme.colors.textSecondary}`}>
           {MIN_PROFILE_FIELDS}〜{MAX_PROFILE_FIELDS} 個の項目を設定できます（現在 {fields.length} 個）
         </p>
+
+        {/* プリセット選択 */}
+        <div className="mb-4">
+          <p className={`mb-2 text-xs font-medium ${theme.colors.labelText}`}>
+            🏷️ プリセットから選ぶ
+          </p>
+          <ChipGroup
+            items={presetChips}
+            selected={activePresetId}
+            onSelect={(key) => handleApplyPreset(key as ProfileFieldPresetId)}
+          />
+        </div>
 
         <div className="space-y-3">
           {fields.map((field, index) => (
