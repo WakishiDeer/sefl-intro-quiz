@@ -23,7 +23,8 @@
     "test:client": "npm run test --workspace=packages/client",
     "lint": "npm run lint --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present",
-    "e2e:setup": "npx playwright test e2e/setup-3players.ts --headed"
+    "e2e:setup": "npx playwright test e2e/setup-3players.ts --headed",
+    "e2e:setup-2rooms": "npx playwright test e2e/setup-2rooms.ts --headed"
   },
   "engines": {
     "node": ">=20.0.0"
