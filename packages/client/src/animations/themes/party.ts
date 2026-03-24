@@ -1,52 +1,53 @@
 /**
- * party テーマ — パーティー / ワイワイモード
+ * party テーマ — ネオンナイト / ディスコパーティー
  *
- * 大きな bounce、confetti burst、wobble で盛り上がる演出。
- * 常時カラフルなドットが浮遊する。正解時は canvas-confetti で紙吹雪。
+ * ロイヤルパープル × ゴールドのカラースキームで夜のパーティー感を演出。
+ * 常時ディスコボール風ライトビーム + ダイヤモンド反射が浮遊。
+ * 正解時は花火バーストが画面を彩る。
  */
 
 import { createElement } from "react";
 import type { AnimationThemeConfig } from "../types.js";
-import { ConfettiEffect } from "../effects/ConfettiEffect.js";
-import { AmbientParticles } from "../effects/AmbientParticles.js";
+import { FireworksBurst } from "../effects/FireworksBurst.js";
+import { PartyLights } from "../effects/PartyLights.js";
 import { SpotlightEffect } from "../effects/SpotlightEffect.js";
 
 export const partyTheme: AnimationThemeConfig = {
     name: "party",
     colors: {
-        bgGradient: "from-fuchsia-200 via-pink-100 to-violet-200",
+        bgGradient: "from-violet-400/80 via-purple-300/70 to-amber-200/80",
         cardBg: "bg-white/80 backdrop-blur-sm",
-        cardBorder: "border-fuchsia-300",
-        buttonPrimary: "bg-fuchsia-600 shadow-lg shadow-fuchsia-400/50",
-        buttonPrimaryHover: "hover:bg-fuchsia-700 hover:shadow-fuchsia-500/60",
-        buttonAccent: "bg-pink-500 shadow-lg shadow-pink-400/50",
-        buttonAccentHover: "hover:bg-pink-600",
-        textPrimary: "text-fuchsia-950",
-        textSecondary: "text-fuchsia-600",
-        textAccent: "text-fuchsia-700",
-        explanationBg: "bg-fuchsia-100/80 backdrop-blur-sm",
-        explanationText: "text-fuchsia-900",
-        highlightGradient: "from-fuchsia-100 to-pink-100",
-        inputField: "bg-white/80 border-fuchsia-300 text-fuchsia-950 placeholder:text-fuchsia-300",
-        inputFocus: "focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-200",
-        labelText: "text-fuchsia-800",
-        surfaceMuted: "bg-fuchsia-50/60",
+        cardBorder: "border-violet-400",
+        buttonPrimary: "bg-violet-600 shadow-lg shadow-violet-400/50",
+        buttonPrimaryHover: "hover:bg-violet-700 hover:shadow-violet-500/60",
+        buttonAccent: "bg-amber-500 shadow-lg shadow-amber-400/50",
+        buttonAccentHover: "hover:bg-amber-600",
+        textPrimary: "text-violet-950",
+        textSecondary: "text-violet-600",
+        textAccent: "text-amber-600",
+        explanationBg: "bg-violet-100/80 backdrop-blur-sm",
+        explanationText: "text-violet-900",
+        highlightGradient: "from-violet-100 to-amber-100",
+        inputField: "bg-white/80 border-violet-300 text-violet-950 placeholder:text-violet-300",
+        inputFocus: "focus:border-violet-500 focus:ring-1 focus:ring-violet-200",
+        labelText: "text-violet-800",
+        surfaceMuted: "bg-violet-50/60",
         badgeSuccess: "bg-green-100 text-green-700",
         badgeError: "bg-red-100 text-red-700",
         badgeWarning: "bg-yellow-100 text-yellow-700",
         badgeMuted: "bg-gray-100 text-gray-400",
         buttonDanger: "border-red-300 text-red-600 hover:bg-red-50",
-        buttonGhost: "border-fuchsia-300 text-fuchsia-600 hover:bg-fuchsia-50",
+        buttonGhost: "border-violet-300 text-violet-600 hover:bg-violet-50",
         modalBg: "bg-white/90 backdrop-blur-sm",
-        choiceIndexBadge: "bg-fuchsia-600",
+        choiceIndexBadge: "bg-violet-600",
         participantOnline: "bg-green-400",
         participantOffline: "bg-gray-400",
         statusOk: "text-green-500",
-        chipSelected: "bg-fuchsia-600 text-white",
-        chipDefault: "bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-100",
-        spinner: "border-fuchsia-200 border-t-fuchsia-600",
-        progressIndicator: "bg-fuchsia-50 text-fuchsia-700",
-        linkText: "text-fuchsia-600",
+        chipSelected: "bg-violet-600 text-white",
+        chipDefault: "bg-violet-50 text-violet-700 hover:bg-violet-100",
+        spinner: "border-violet-200 border-t-violet-600",
+        progressIndicator: "bg-violet-50 text-violet-700",
+        linkText: "text-violet-600",
     },
     variants: {
         questionEntry: {
@@ -145,29 +146,17 @@ export const partyTheme: AnimationThemeConfig = {
         },
     },
     effects: {
-        onCorrect: () => createElement(ConfettiEffect),
-        ambient: () => createElement(AmbientParticles, {
-            config: {
-                colors: ["#f472b6", "#a78bfa", "#60a5fa", "#34d399", "#fbbf24", "#fb923c", "#f43f5e"],
-                count: 35,
-                minSize: 3,
-                maxSize: 7,
-                speed: 0.5,
-                shape: "circle" as const,
-                twinkle: true,
-                direction: "float" as const,
-                opacity: 0.5,
-            },
-        }),
+        onCorrect: () => createElement(FireworksBurst),
+        ambient: () => createElement(PartyLights),
         onInterview: (name: string) => createElement(SpotlightEffect, {
             subjectName: name,
             config: {
-                color: "rgba(192, 38, 211, 0.65)",
-                glowColor: "rgba(244, 114, 182, 0.35)",
-                overlayColor: "rgba(20, 0, 30, 0.6)",
+                color: "rgba(139, 92, 246, 0.65)",
+                glowColor: "rgba(251, 191, 36, 0.35)",
+                overlayColor: "rgba(20, 0, 40, 0.6)",
                 nameColor: "text-white",
-                nameGlow: "0 0 30px rgba(244,114,182,0.8), 0 0 60px rgba(192,38,211,0.5), 0 0 90px rgba(167,139,250,0.3)",
-                badgeClass: "bg-fuchsia-500",
+                nameGlow: "0 0 30px rgba(251,191,36,0.8), 0 0 60px rgba(139,92,246,0.5), 0 0 90px rgba(168,85,247,0.3)",
+                badgeClass: "bg-violet-500",
                 decorEmojis: ["🎉", "🎊", "🎤", "💃", "🕺", "🪩", "🔥"],
                 decorCount: 18,
                 style: "beam" as const,
