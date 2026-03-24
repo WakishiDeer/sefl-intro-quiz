@@ -24,6 +24,8 @@ import { LobbyView } from "../components/LobbyView";
 import { QuizView } from "../components/QuizView";
 import { ResultView } from "../components/ResultView";
 import { InvitationBanner } from "../components/InvitationBanner";
+import { ReactionBar } from "../components/ReactionBar";
+import { ReactionParticles } from "../animations/effects/ReactionParticles";
 
 /** セッション復帰の最大待ち時間（ms）。claim + 接続 + room:join の合計 */
 const RECONNECT_TIMEOUT_MS = 8000;
@@ -315,6 +317,12 @@ export function RoomPage() {
 
             {/* 他のルームからの招待通知 */}
             <InvitationBanner />
+
+            {/* リアクションパーティクル（全画面オーバーレイ） */}
+            <ReactionParticles />
+
+            {/* リアクション送信バー（画面下部固定） */}
+            <ReactionBar />
         </div>
     );
 }

@@ -29,10 +29,12 @@ import type {
     AIRequestResultPayload,
     AIRequestCancelledPayload,
     InvitationReceivedPayload,
+    ReactionReceivedPayload,
 } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { useQuizStore } from "../stores/useQuizStore.js";
 import { useToastStore } from "../stores/useToastStore.js";
+import { useReactionStore } from "../stores/useReactionStore.js";
 import { saveSession, clearSession, getOrCreateClientId } from "../lib/sessionPersistence.js";
 import { useNavigate } from "react-router";
 
@@ -279,6 +281,16 @@ export function useSocket(): void {
             useRoomStore.getState().addInvitation(payload);
         };
 
+        // リアクション受信
+        const onReactionReceived = (payload: ReactionReceivedPayload) => {
+            useReactionStore.getState().addParticle({
+                display: payload.display,
+                type: payload.type,
+                senderNickname: payload.senderNickname,
+                ...(payload.mono ? { mono: true } : {}),
+            });
+        };
+
         // ロビー復帰: クイズ終了後にロビーに戻る
         const onBackToLobby = (payload: RoomStateSync) => {
             // クイズ状態をリセット
@@ -367,6 +379,7 @@ export function useSocket(): void {
         socket.on(S2C_EVENTS.AI_REQUEST_GENERATING, onAIRequestGenerating);
         socket.on(S2C_EVENTS.ROOM_THEME_CHANGED, onThemeChanged);
         socket.on(S2C_EVENTS.ROOM_INVITATION, onInvitationReceived);
+        socket.on(S2C_EVENTS.REACTION_RECEIVED, onReactionReceived);
         socket.on(S2C_EVENTS.QUIZ_GENERATING, onQuizGenerating);
         socket.on(S2C_EVENTS.QUIZ_READY, onQuizReady);
         socket.on(S2C_EVENTS.QUIZ_GENERATE_FAILED, onQuizGenerateFailed);
@@ -397,6 +410,7 @@ export function useSocket(): void {
             socket.off(S2C_EVENTS.AI_REQUEST_GENERATING, onAIRequestGenerating);
             socket.off(S2C_EVENTS.ROOM_THEME_CHANGED, onThemeChanged);
             socket.off(S2C_EVENTS.ROOM_INVITATION, onInvitationReceived);
+            socket.off(S2C_EVENTS.REACTION_RECEIVED, onReactionReceived);
             socket.off(S2C_EVENTS.QUIZ_GENERATING, onQuizGenerating);
             socket.off(S2C_EVENTS.QUIZ_READY, onQuizReady);
             socket.off(S2C_EVENTS.QUIZ_GENERATE_FAILED, onQuizGenerateFailed);
