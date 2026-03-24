@@ -33,6 +33,7 @@ interface RoomState {
     joinedAtQuestion: number;
     profileFields: ProfileFieldDefinition[];
     animationTheme: AnimationThemeName;
+    roomName: string;
 
     // AI リクエスト状態
     aiRequestState: AIRequestState;
@@ -62,6 +63,7 @@ interface RoomState {
     setProfileFields: (fields: ProfileFieldDefinition[], profilesInvalidated: boolean) => void;
     setMyProfile: (profile: Record<string, string> | null) => void;
     setAnimationTheme: (theme: AnimationThemeName) => void;
+    setRoomName: (roomName: string) => void;
     setAIRequestState: (state: AIRequestState) => void;
     setAIRequestStarted: (expiresAt: number, totalParticipants: number) => void;
     setAIRequestStatus: (submittedCount: number, totalParticipants: number) => void;
@@ -85,6 +87,7 @@ const initialState = {
     joinedAtQuestion: -1,
     profileFields: DEFAULT_PROFILE_FIELDS as ProfileFieldDefinition[],
     animationTheme: DEFAULT_ANIMATION_THEME as AnimationThemeName,
+    roomName: "",
     aiRequestState: "idle" as AIRequestState,
     aiRequestExpiresAt: null as number | null,
     aiRequestSubmittedCount: 0,
@@ -114,6 +117,7 @@ export const useRoomStore = create<RoomState>((set) => ({
             joinedAtQuestion: state.self.joinedAtQuestion,
             profileFields: state.room.profileFields,
             animationTheme: state.room.animationTheme,
+            roomName: state.room.roomName,
             myProfile: state.self.profile ?? null,
         }),
 
@@ -138,6 +142,8 @@ export const useRoomStore = create<RoomState>((set) => ({
     setMyProfile: (profile) => set({ myProfile: profile }),
 
     setAnimationTheme: (theme) => set({ animationTheme: theme }),
+
+    setRoomName: (roomName) => set({ roomName }),
 
     setAIRequestState: (aiRequestState) => set({ aiRequestState }),
 

@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, Link } from "react-router";
+import { useParams, useSearchParams, Link } from "react-router";
 import { socket } from "../lib/socket.js";
 import { C2S_EVENTS, S2C_EVENTS, NicknameSchema, RoomCodeSchema } from "@self-intro-quiz/shared";
 import type { RoomSummary, RoomListPayload, NicknameResultPayload, RoomErrorPayload } from "@self-intro-quiz/shared";
@@ -35,14 +35,19 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 export function JoinRoomPage() {
   const { roomCode: urlRoomCode } = useParams<{ roomCode?: string }>();
+  const [searchParams] = useSearchParams();
+  /** 招待経由で渡されたニックネーム（自動参加に使用） */
+  const carriedNickname = searchParams.get("nickname") ?? "";
   const [roomCode, setRoomCode] = useState(urlRoomCode ?? "");
-  const [nickname, setNickname] = useState("");
+  const [nickname, setNickname] = useState(carriedNickname);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
   /** ニックネームが使用不可であることが判明しているか（重複検出フラグ） */
   const [isNicknameTaken, setIsNicknameTaken] = useState(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** 招待経由の自動参加が実行済みかどうか */
+  const autoJoinAttemptedRef = useRef(false);
 
   // useRef で最新の roomCode / nickname を保持し、
   // onNicknameResult リスナーが古いクロージャを参照する問題を回避する
@@ -104,6 +109,11 @@ export function JoinRoomPage() {
       if (payload.code === "ROOM_NOT_FOUND") {
         useRoomStore.getState().reset();
       }
+
+      // 自動参加失敗時はルーム一覧を再購読してフォーム操作を有効にする
+      if (autoJoinAttemptedRef.current) {
+        socket.emit(C2S_EVENTS.ROOM_LIST_SUBSCRIBE);
+      }
     };
 
     socket.on(S2C_EVENTS.ROOM_LIST, onRoomList);
@@ -128,6 +138,40 @@ export function JoinRoomPage() {
       }
     };
   }, []);
+
+  // 招待経由の自動参加: URL にルームコードとニックネームの両方が含まれている場合、
+  // ソケット接続後に自動で room:join を送信する。
+  // 重複が検出された場合はフォームに戻してユーザーに入力を促す。
+  useEffect(() => {
+    if (autoJoinAttemptedRef.current) return;
+    if (!urlRoomCode || !carriedNickname) return;
+
+    const normalizedCode = urlRoomCode.toUpperCase();
+    if (!RoomCodeSchema.safeParse(normalizedCode).success) return;
+    if (!NicknameSchema.safeParse(carriedNickname).success) return;
+
+    const attemptAutoJoin = () => {
+      if (autoJoinAttemptedRef.current) return;
+      autoJoinAttemptedRef.current = true;
+      setIsSubmitting(true);
+      socket.emit(C2S_EVENTS.ROOM_LIST_UNSUBSCRIBE);
+      const clientId = getOrCreateClientId();
+      socket.emit(C2S_EVENTS.ROOM_JOIN, {
+        roomCode: normalizedCode,
+        nickname: carriedNickname,
+        clientId,
+      });
+    };
+
+    if (socket.connected) {
+      attemptAutoJoin();
+    } else {
+      socket.once("connect", attemptAutoJoin);
+      return () => {
+        socket.off("connect", attemptAutoJoin);
+      };
+    }
+  }, [urlRoomCode, carriedNickname]);
 
   // ニックネーム / ルームコード変更時のリアルタイム重複チェック
   useEffect(() => {

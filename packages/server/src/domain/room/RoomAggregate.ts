@@ -14,7 +14,7 @@ import type {
     ProfileFieldDefinition,
     AnimationThemeName,
 } from "@self-intro-quiz/shared";
-import { MAX_PARTICIPANTS, DEFAULT_PROFILE_FIELDS, MIN_PROFILE_FIELDS, MAX_PROFILE_FIELDS, DEFAULT_ANIMATION_THEME, ANIMATION_THEMES } from "@self-intro-quiz/shared";
+import { MAX_PARTICIPANTS, DEFAULT_PROFILE_FIELDS, MIN_PROFILE_FIELDS, MAX_PROFILE_FIELDS, DEFAULT_ANIMATION_THEME, ANIMATION_THEMES, MAX_ROOM_NAME_LENGTH } from "@self-intro-quiz/shared";
 
 // ============================================================
 // ドメインエラー
@@ -76,6 +76,7 @@ export class RoomAggregate {
 
         const room: Room = {
             code: roomCode,
+            roomName: "",
             hostId,
             phase: "lobby",
             participants,
@@ -176,6 +177,37 @@ export class RoomAggregate {
     removeParticipant(participantId: string): void {
         this.room.participants.delete(participantId);
         this.room.lastActivityAt = Date.now();
+    }
+
+    /**
+     * ホストが指定された参加者をルームから除外（キック）する。
+     *
+     * ドメインルール:
+     * - ホストのみがキック可能
+     * - 自分自身はキックできない
+     * - 対象参加者はルームから完全に削除される（接続状態を問わない）
+     *
+     * @param targetParticipantId - キック対象の参加者 ID
+     * @param callerParticipantId - 操作者（ホスト）の participantId
+     * @returns キックされた参加者
+     * @throws RoomDomainError NOT_HOST / CANNOT_KICK_SELF / PARTICIPANT_NOT_FOUND
+     */
+    kickParticipant(targetParticipantId: string, callerParticipantId: string): Participant {
+        if (!this.isHost(callerParticipantId)) {
+            throw new RoomDomainError("NOT_HOST", "参加者を除外できるのはホストのみです");
+        }
+
+        if (targetParticipantId === callerParticipantId) {
+            throw new RoomDomainError("CANNOT_KICK_SELF", "自分自身を除外することはできません");
+        }
+
+        const target = this.room.participants.get(targetParticipantId);
+        if (!target) {
+            throw new RoomDomainError("PARTICIPANT_NOT_FOUND", "対象の参加者が見つかりません");
+        }
+
+        this.removeParticipant(targetParticipantId);
+        return target;
     }
 
     /**
@@ -456,6 +488,33 @@ export class RoomAggregate {
     }
 
     // ----------------------------------------------------------
+    // ルーム名管理
+    // ----------------------------------------------------------
+
+    /**
+     * ルーム名を変更する。Host のみが変更可能。
+     * 空文字を設定するとルーム名をクリアできる。
+     *
+     * @param roomName - 新しいルーム名（0〜MAX_ROOM_NAME_LENGTH 文字）
+     * @param callerParticipantId - 操作者の participantId
+     * @throws RoomDomainError NOT_HOST — Host 以外が変更しようとした場合
+     * @throws RoomDomainError INVALID_ROOM_NAME — ルーム名が長すぎる場合
+     */
+    setRoomName(roomName: string, callerParticipantId: string): void {
+        if (!this.isHost(callerParticipantId)) {
+            throw new RoomDomainError("NOT_HOST", "ルーム名を変更できるのはホストのみです");
+        }
+        if (roomName.length > MAX_ROOM_NAME_LENGTH) {
+            throw new RoomDomainError(
+                "INVALID_ROOM_NAME",
+                `ルーム名は${MAX_ROOM_NAME_LENGTH}文字以下です`,
+            );
+        }
+        this.room.roomName = roomName;
+        this.room.lastActivityAt = Date.now();
+    }
+
+    // ----------------------------------------------------------
     // クエリ
     // ----------------------------------------------------------
 
@@ -559,6 +618,11 @@ export class RoomAggregate {
     /** 現在のアニメーションテーマ */
     get animationTheme(): AnimationThemeName {
         return this.room.animationTheme;
+    }
+
+    /** ルーム名（空文字 = 未設定） */
+    get roomName(): string {
+        return this.room.roomName;
     }
 
     /** 現在のフェーズ */

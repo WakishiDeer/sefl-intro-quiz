@@ -48,6 +48,15 @@ const REFLECTION_COLORS = [
 
 const REFLECTION_COUNT = 28;
 
+/* ─── ミラーボール設定 ─── */
+const MIRROR_BALL_RADIUS = 60;
+/** ミラーボール表面のタイル数（行） */
+const TILE_ROWS = 10;
+/** ミラーボールのゆっくりとした回転速度 */
+const MIRROR_BALL_ROTATE_SPEED = 0.003;
+/** ミラーボールの透明度（控えめだが存在感） */
+const MIRROR_BALL_OPACITY = 0.55;
+
 /** ビームの色（低透明度で画面を覆わないように制御） */
 const BEAM_CONFIGS: Array<{ color: string; direction: 1 | -1 }> = [
     { color: "rgba(168, 85, 247, 0.07)", direction: 1 },
@@ -98,6 +107,9 @@ export function PartyLights() {
             originY: canvas.height * (0.08 + Math.random() * 0.25),
         }));
 
+        /* ── ミラーボール状態 ── */
+        let mirrorBallAngle = 0;
+
         let animId: number;
 
         /** ダイヤモンド形状を描画 */
@@ -113,6 +125,76 @@ export function PartyLights() {
             ctx.lineTo(-size * 0.6, 0);
             ctx.closePath();
             ctx.fill();
+            ctx.restore();
+        }
+
+        /** ミラーボール球体を描画（右上に配置） */
+        function drawMirrorBall(cx: number, cy: number, radius: number, angle: number) {
+            if (!ctx) return;
+            ctx.save();
+            ctx.globalAlpha = MIRROR_BALL_OPACITY;
+
+            // 球体のベースグラデーション（球体感を出すための明暗）
+            const baseGrad = ctx.createRadialGradient(
+                cx - radius * 0.3, cy - radius * 0.3, radius * 0.05,
+                cx, cy, radius,
+            );
+            baseGrad.addColorStop(0, "rgba(220, 220, 240, 0.9)");
+            baseGrad.addColorStop(0.4, "rgba(180, 180, 200, 0.7)");
+            baseGrad.addColorStop(0.8, "rgba(100, 100, 130, 0.5)");
+            baseGrad.addColorStop(1, "rgba(60, 60, 80, 0.3)");
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.fillStyle = baseGrad;
+            ctx.fill();
+
+            // タイルパターン描画（球面に貼り付いたミラータイル風）
+            ctx.clip(); // 球体の外にはみ出さないようにクリップ
+            for (let row = 0; row < TILE_ROWS; row++) {
+                const rowAngle = (Math.PI * (row + 0.5)) / TILE_ROWS - Math.PI / 2;
+                const rowRadius = Math.cos(rowAngle) * radius;
+                const rowY = cy + Math.sin(rowAngle) * radius;
+                const tilesInRow = Math.max(4, Math.round(TILE_ROWS * 2 * Math.cos(rowAngle)));
+
+                for (let col = 0; col < tilesInRow; col++) {
+                    const colAngle = (Math.PI * 2 * col) / tilesInRow + angle;
+                    const tileX = cx + Math.cos(colAngle) * rowRadius;
+                    const tileSize = (radius * 2) / (TILE_ROWS * 1.8);
+
+                    // 球面上の位置で明るさを変える（回転に連動してチラつく）
+                    const facingFactor = Math.cos(colAngle - angle * 0.5) * 0.5 + 0.5;
+                    const shimmer = Math.sin(colAngle * 3 + angle * 5 + row) * 0.15;
+                    const brightness = 0.2 + facingFactor * 0.5 + shimmer;
+
+                    // タイルの色（白〜薄いカラー）
+                    const colorIdx = (row + col) % REFLECTION_COLORS.length;
+                    const tileColor = REFLECTION_COLORS[colorIdx]!;
+
+                    ctx.globalAlpha = MIRROR_BALL_OPACITY * brightness;
+                    ctx.fillStyle = brightness > 0.55 ? tileColor : `rgba(200, 200, 220, ${brightness})`;
+                    ctx.fillRect(
+                        tileX - tileSize / 2,
+                        rowY - tileSize / 2,
+                        tileSize * 0.85,
+                        tileSize * 0.85,
+                    );
+                }
+            }
+
+            // ハイライト光沢（球体の左上に白い反射）
+            ctx.globalAlpha = 0.3;
+            const shineGrad = ctx.createRadialGradient(
+                cx - radius * 0.35, cy - radius * 0.35, radius * 0.02,
+                cx - radius * 0.2, cy - radius * 0.2, radius * 0.5,
+            );
+            shineGrad.addColorStop(0, "rgba(255, 255, 255, 0.8)");
+            shineGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
+            ctx.fillStyle = shineGrad;
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.fill();
+
             ctx.restore();
         }
 
@@ -168,6 +250,12 @@ export function PartyLights() {
                 drawDiamond(r.x, r.y, r.size, r.rotation);
                 ctx.shadowBlur = 0;
             }
+
+            /* ── ミラーボール描画（右上に配置） ── */
+            mirrorBallAngle += MIRROR_BALL_ROTATE_SPEED;
+            const ballX = canvas.width - MIRROR_BALL_RADIUS - 30;
+            const ballY = MIRROR_BALL_RADIUS + 30;
+            drawMirrorBall(ballX, ballY, MIRROR_BALL_RADIUS, mirrorBallAngle);
 
             ctx.globalAlpha = 1;
             animId = requestAnimationFrame(animate);

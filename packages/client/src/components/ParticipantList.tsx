@@ -6,12 +6,15 @@
  *   - lobby: プロフィール入力状態（✓ / 未入力）
  *   - quiz:  回答状態（✓ 回答済み / ⏳ 回答中）
  * currentNickname と一致する行は強調表示する。
+ * ホストは非接続の参加者をキックできる。
  * テーマ対応の参加者入室アニメーション付き。
  */
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { useAnimationTheme } from "../animations/useAnimationTheme.js";
+import { socket } from "../lib/socket.js";
+import { C2S_EVENTS } from "@self-intro-quiz/shared";
 
 interface ParticipantListProps {
   /** 表示モード: lobby=プロフィール状態 / quiz=回答状態 */
@@ -28,7 +31,12 @@ export function ParticipantList({
   answeredNicknames = [],
 }: ParticipantListProps) {
   const participants = useRoomStore((s) => s.participants);
+  const isHost = useRoomStore((s) => s.isHost);
   const theme = useAnimationTheme();
+
+  const handleKick = (participantId: string) => {
+    socket.emit(C2S_EVENTS.ROOM_KICK, { targetParticipantId: participantId });
+  };
 
   return (
     <div className="space-y-2">
@@ -40,6 +48,8 @@ export function ParticipantList({
           {participants.map((p) => {
             const isMe = currentNickname != null && p.nickname === currentNickname;
             const hasAnswered = answeredNicknames.includes(p.nickname);
+            // ホストは自分以外の参加者をキックできる
+            const canKick = isHost && !isMe && !p.isHost;
 
             return (
               <motion.li
@@ -78,22 +88,29 @@ export function ParticipantList({
                 )}
               </div>
 
-              {/* 右カラム: モードに応じた状態表示 */}
-              <div className="shrink-0 ml-2">
+              {/* 右カラム: 状態表示 + キックボタン */}
+              <div className="flex items-center gap-1 shrink-0 ml-2">
                 {mode === "lobby" ? (
-                  // ロビー: プロフィール入力状態
                   p.hasProfile ? (
                     <span className={theme.colors.statusOk}>✓</span>
                   ) : (
                     <span className={`${theme.colors.textSecondary} text-xs`}>未入力</span>
                   )
                 ) : (
-                  // クイズ中: 回答状態
                   hasAnswered ? (
                     <span className={theme.colors.statusOk} title="回答済み">✓</span>
                   ) : (
                     <span className={theme.colors.textSecondary} title="回答中">⏳</span>
                   )
+                )}
+                {canKick && (
+                  <button
+                    onClick={() => handleKick(p.participantId)}
+                    className={`ml-1 rounded px-1.5 py-0.5 text-xs ${theme.colors.buttonDanger} opacity-70 hover:opacity-100 transition-opacity`}
+                    title={`${p.nickname} を除外`}
+                  >
+                    ✕
+                  </button>
                 )}
               </div>
             </motion.li>

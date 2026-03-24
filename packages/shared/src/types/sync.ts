@@ -20,6 +20,8 @@ import type { ScoreEntry, QuizHighlight, ParticipantAnswerResult, QuestionResult
 export interface RoomStateSync {
     room: {
         code: string;
+        /** ホストが設定したルーム名（空文字 = 未設定） */
+        roomName: string;
         phase: RoomPhase;
         /** -1 = 未開始 */
         currentQuestionIndex: number;
@@ -49,6 +51,8 @@ export interface RoomStateSync {
 
 /** クライアント向け参加者情報（socketId 等のサーバ内部情報は含まない） */
 export interface ParticipantInfo {
+    /** 参加者 ID（キック操作等で使用） */
+    participantId: string;
     nickname: string;
     score: number;
     answeredCount: number;
@@ -266,6 +270,8 @@ export interface RoomSummaryParticipant {
 /** ルーム一覧の1件分のサマリー */
 export interface RoomSummary {
     code: string;
+    /** ホストが設定したルーム名（空文字 = 未設定） */
+    roomName: string;
     phase: RoomPhase;
     hostNickname: string;
     participants: RoomSummaryParticipant[];
@@ -370,10 +376,43 @@ export interface SendInvitePayload {
 export interface InvitationReceivedPayload {
     /** 招待元のルームコード */
     fromRoomCode: string;
+    /** 招待元のルーム名（空文字 = 未設定） */
+    fromRoomName: string;
     /** 招待を送った参加者のニックネーム */
     senderNickname: string;
     /** 招待メッセージ */
     message: string;
     /** 招待元ルームの参加者数 */
     participantCount: number;
+}
+
+// ============================================================
+// 参加者キック（ホスト専用）
+// ============================================================
+
+/** room:kick (C2S) ペイロード — ホストが参加者を除外 */
+export interface KickParticipantPayload {
+    /** 除外対象の participantId */
+    targetParticipantId: string;
+}
+
+/** room:participant-kicked (S2C) ペイロード — キックされた参加者への通知 */
+export interface ParticipantKickedPayload {
+    /** キックされた参加者のニックネーム */
+    nickname: string;
+}
+
+// ============================================================
+// ルーム名変更
+// ============================================================
+
+/** room:set-name (C2S) ペイロード — ホストがルーム名を変更 */
+export interface SetRoomNamePayload {
+    /** 新しいルーム名（空文字でクリア） */
+    roomName: string;
+}
+
+/** room:name-changed (S2C) ペイロード — ルーム名が変更されたことを通知 */
+export interface RoomNameChangedPayload {
+    roomName: string;
 }

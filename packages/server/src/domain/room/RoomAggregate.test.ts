@@ -923,4 +923,46 @@ describe("RoomAggregate", () => {
             expect(roomData.animationTheme).toBe("sakura");
         });
     });
+
+    // ============================================================
+    // kickParticipant
+    // ============================================================
+
+    describe("kickParticipant", () => {
+        it("ホストが参加者をキックできる", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            const kicked = room.kickParticipant(bob.id, room.hostId);
+            expect(kicked.nickname).toBe("Bob");
+            expect(room.participantCount).toBe(1); // ホストのみ残る
+            expect(room.getParticipant(bob.id)).toBeUndefined();
+        });
+
+        it("切断中の参加者もキックできる", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            room.disconnectParticipant(bob.id);
+            const kicked = room.kickParticipant(bob.id, room.hostId);
+            expect(kicked.nickname).toBe("Bob");
+            expect(room.participantCount).toBe(1);
+        });
+
+        it("ホスト以外がキックしようとするとエラーをスローする", () => {
+            const bob = room.addParticipant("Bob", "socket-bob");
+            const charlie = room.addParticipant("Charlie", "socket-charlie");
+            expect(() => room.kickParticipant(charlie.id, bob.id)).toThrow(
+                expect.objectContaining({ code: "NOT_HOST" }),
+            );
+        });
+
+        it("自分自身をキックしようとするとエラーをスローする", () => {
+            expect(() => room.kickParticipant(room.hostId, room.hostId)).toThrow(
+                expect.objectContaining({ code: "CANNOT_KICK_SELF" }),
+            );
+        });
+
+        it("存在しない参加者をキックしようとするとエラーをスローする", () => {
+            expect(() => room.kickParticipant("non-existent-id", room.hostId)).toThrow(
+                expect.objectContaining({ code: "PARTICIPANT_NOT_FOUND" }),
+            );
+        });
+    });
 });

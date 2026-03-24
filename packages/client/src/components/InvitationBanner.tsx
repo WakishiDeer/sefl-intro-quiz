@@ -54,14 +54,18 @@ export function InvitationBanner() {
     const handleJoin = (targetRoomCode: string, index: number) => {
         // バナーを即座に消す
         dismissInvitation(index);
+        // ニックネームを退出前に取得（招待先ルームで再利用するため）
+        const currentNickname = useRoomStore.getState().nickname;
         // 退出イベント送信 + セッションクリア + ストアリセット
         socket.emit(C2S_EVENTS.ROOM_LEAVE);
         clearSession();
         useRoomStore.getState().reset();
         useQuizStore.getState().reset();
         // React Router の navigate() だと RoomPage の <Navigate> リダイレクトと競合するため、
-        // window.location で直接遷移する
-        window.location.href = `/join/${targetRoomCode}`;
+        // window.location で直接遷移する。
+        // ニックネームをクエリパラメータで渡し、参加ページで自動入力 → 自動参加する
+        const params = currentNickname ? `?nickname=${encodeURIComponent(currentNickname)}` : "";
+        window.location.href = `/join/${targetRoomCode}${params}`;
     };
 
     return (
@@ -87,7 +91,13 @@ export function InvitationBanner() {
                         {inv.senderNickname} さんからの招待
                     </p>
                     <p className={`mb-1 text-xs ${theme.colors.textSecondary}`}>
-                        ルーム <span className="font-mono font-bold tracking-wider">{inv.fromRoomCode}</span>（{inv.participantCount}人が参加中）
+                        ルーム{" "}
+                        {inv.fromRoomName ? (
+                            <><span className="font-bold">{inv.fromRoomName}</span>{" "}(<span className="font-mono font-bold tracking-wider">{inv.fromRoomCode}</span>)</>
+                        ) : (
+                            <span className="font-mono font-bold tracking-wider">{inv.fromRoomCode}</span>
+                        )}
+                        （{inv.participantCount}人が参加中）
                     </p>
                     <p className={`mb-3 text-sm ${theme.colors.textSecondary}`}>
                         「{inv.message}」

@@ -69,6 +69,11 @@ export function RoomListPanel({ rooms, onSelectRoom }: RoomListPanelProps) {
                                         <span className="font-mono text-lg font-bold text-indigo-900 tracking-wider">
                                             {room.code}
                                         </span>
+                                        {room.roomName && (
+                                            <span className="text-sm font-semibold text-gray-700 truncate max-w-[140px]" title={room.roomName}>
+                                                {room.roomName}
+                                            </span>
+                                        )}
                                         <span
                                             className={`rounded px-1.5 py-0.5 text-xs font-medium ${badge.className}`}
                                         >

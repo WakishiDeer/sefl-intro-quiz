@@ -72,4 +72,8 @@ export type {
     AIRequestCancelledPayload,
     SendInvitePayload,
     InvitationReceivedPayload,
+    KickParticipantPayload,
+    ParticipantKickedPayload,
+    SetRoomNamePayload,
+    RoomNameChangedPayload,
 } from "./sync.js";

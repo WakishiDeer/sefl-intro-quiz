@@ -15,10 +15,13 @@ import {
     SubmitProfileSchema,
     UpdateFieldsSchema,
     SetThemeSchema,
+    SetRoomNameSchema,
     SendInviteSchema,
     SendReactionSchema,
+    KickParticipantSchema,
     MAX_PARTICIPANTS,
     DISCONNECT_REMOVE_TIMEOUT_MS,
+    EMPTY_ROOM_TTL_MS,
     INVITE_COOLDOWN_MS,
     REACTION_RATE_LIMIT,
     REACTION_RATE_WINDOW_MS,
@@ -46,6 +49,8 @@ import type {
     InvitationReceivedPayload,
     ReactionReceivedPayload,
     ReactionDefinition,
+    ParticipantKickedPayload,
+    RoomNameChangedPayload,
 } from "@self-intro-quiz/shared";
 import { RoomAggregate, RoomDomainError } from "../domain/room/RoomAggregate.js";
 import type { RoomRepository } from "../domain/room/RoomRepository.js";
@@ -114,6 +119,7 @@ export function broadcastRoomList(io: Server, roomRepo: RoomRepository): void {
         const host = Array.from(room.participants.values()).find((p) => p.isHost);
         rooms.push({
             code: room.code,
+            roomName: room.roomName,
             phase: room.phase,
             hostNickname: host?.nickname ?? "",
             participants: Array.from(room.participants.values()).map((p) => ({
@@ -162,6 +168,7 @@ function buildRoomStateSync(
         }
 
         participants.push({
+            participantId: p.id,
             nickname: p.nickname,
             score,
             answeredCount,
@@ -175,6 +182,7 @@ function buildRoomStateSync(
     const sync: RoomStateSync = {
         room: {
             code: room.code,
+            roomName: room.roomName,
             phase: room.phase,
             currentQuestionIndex: quizAgg?.currentQuestionIndex ?? -1,
             totalQuestions: quizAgg?.totalQuestions ?? 0,
@@ -274,6 +282,7 @@ export function registerRoomHandlers(
             const host = Array.from(room.participants.values()).find((p) => p.isHost);
             rooms.push({
                 code: room.code,
+                roomName: room.roomName,
                 phase: room.phase,
                 hostNickname: host?.nickname ?? "",
                 participants: Array.from(room.participants.values()).map((p) => ({
@@ -400,6 +409,8 @@ export function registerRoomHandlers(
 
                 // 切断タイムアウトのタイマーをキャンセル（再接続成功のため削除不要）
                 timerService.cancel(`disconnect:${roomCode}:${reconnected.id}`);
+                // 空ルーム TTL タイマーをキャンセル（参加者が復帰したため）
+                timerService.cancel(`empty-room:${roomCode}`);
 
                 void socket.join(roomCode);
 
@@ -454,6 +465,9 @@ export function registerRoomHandlers(
             const participant = roomAgg.addParticipant(nickname, socket.id, currentQuestionIndex, clientId);
             roomRepo.save(roomAgg.toRoom());
             socketSessions.set(socket.id, { roomCode, participantId: participant.id });
+
+            // 空ルーム TTL タイマーをキャンセル（新規参加者が来たため）
+            timerService.cancel(`empty-room:${roomCode}`);
 
             void socket.join(roomCode);
 
@@ -527,6 +541,7 @@ export function registerRoomHandlers(
 
             timerService.cancel(session.roomCode);
             timerService.cancel(`host-transfer:${session.roomCode}`);
+            timerService.cancel(`empty-room:${session.roomCode}`);
 
             // 切断中参加者の削除タイマーもキャンセル
             for (const p of roomAgg.toRoom().participants.values()) {
@@ -721,6 +736,43 @@ export function registerRoomHandlers(
     });
 
     // ----------------------------------------------------------
+    // room:set-name——ルーム名変更（Host のみ）
+    // ----------------------------------------------------------
+    socket.on(C2S_EVENTS.ROOM_SET_NAME, (payload: unknown) => {
+        try {
+            const parsed = SetRoomNameSchema.parse(payload);
+            const session = socketSessions.get(socket.id);
+            if (!session) {
+                socket.emit(S2C_EVENTS.ROOM_ERROR, {
+                    code: "NOT_IN_ROOM",
+                    message: "ルームに参加していません",
+                } satisfies RoomErrorPayload);
+                return;
+            }
+
+            const room = roomRepo.findByCode(session.roomCode);
+            if (!room) return;
+
+            const roomAgg = RoomAggregate.fromRoom(room);
+            roomAgg.setRoomName(sanitize(parsed.roomName), session.participantId);
+            roomRepo.save(roomAgg.toRoom());
+
+            io.to(session.roomCode).emit(S2C_EVENTS.ROOM_NAME_CHANGED, {
+                roomName: roomAgg.roomName,
+            } satisfies RoomNameChangedPayload);
+
+            logger.info(
+                { roomCode: session.roomCode, roomName: roomAgg.roomName },
+                "Room name changed",
+            );
+
+            broadcastRoomList(io, roomRepo);
+        } catch (error) {
+            emitError(socket, error);
+        }
+    });
+
+    // ----------------------------------------------------------
     // room:invite——他のルームに招待を送信（全参加者、クールダウンあり）
     // ----------------------------------------------------------
     socket.on(C2S_EVENTS.ROOM_INVITE, (payload: unknown) => {
@@ -759,6 +811,7 @@ export function registerRoomHandlers(
 
             const invitation: InvitationReceivedPayload = {
                 fromRoomCode: session.roomCode,
+                fromRoomName: roomAgg.roomName,
                 senderNickname: sender?.nickname ?? "",
                 message,
                 participantCount: roomAgg.participantCount,
@@ -834,6 +887,61 @@ export function registerRoomHandlers(
     });
 
     // ----------------------------------------------------------
+    // room:kick——ホストが参加者を除外
+    // ----------------------------------------------------------
+    socket.on(C2S_EVENTS.ROOM_KICK, (payload: unknown) => {
+        try {
+            const parsed = KickParticipantSchema.parse(payload);
+            const session = socketSessions.get(socket.id);
+            if (!session) return;
+
+            const room = roomRepo.findByCode(session.roomCode);
+            if (!room) return;
+
+            const roomAgg = RoomAggregate.fromRoom(room);
+
+            // ドメインロジック: ホスト権限チェック + 削除
+            const kicked = roomAgg.kickParticipant(
+                parsed.targetParticipantId,
+                session.participantId,
+            );
+
+            roomRepo.save(roomAgg.toRoom());
+
+            // 切断タイムアウトのタイマーがあればキャンセル
+            timerService.cancel(`disconnect:${session.roomCode}:${parsed.targetParticipantId}`);
+
+            // キックされた参加者のソケットを特定して通知・退室
+            const kickedSocketId = kicked.socketId;
+            const kickedSocket = io.sockets.sockets.get(kickedSocketId);
+            if (kickedSocket) {
+                kickedSocket.emit(S2C_EVENTS.ROOM_PARTICIPANT_KICKED, {
+                    nickname: kicked.nickname,
+                } satisfies ParticipantKickedPayload);
+                void kickedSocket.leave(session.roomCode);
+                socketSessions.delete(kickedSocketId);
+            }
+
+            // 他の参加者に完全削除を通知
+            const left: ParticipantLeftPayload = {
+                nickname: kicked.nickname,
+                participantCount: roomAgg.getConnectedParticipants().length,
+                removed: true,
+            };
+            io.to(session.roomCode).emit(S2C_EVENTS.ROOM_PARTICIPANT_LEFT, left);
+
+            logger.info(
+                { roomCode: session.roomCode, kickedNickname: kicked.nickname },
+                "Participant kicked by host",
+            );
+
+            broadcastRoomList(io, roomRepo);
+        } catch (error) {
+            emitError(socket, error);
+        }
+    });
+
+    // ----------------------------------------------------------
     // disconnect（Socket.IO 内蔵イベント）
     // ----------------------------------------------------------
     socket.on("disconnect", () => {
@@ -882,16 +990,35 @@ function handleDisconnect(
     void socket.leave(session.roomCode);
     socketSessions.delete(socket.id);
 
-    // 空ルームの場合は即時削除（ドメインルール: 全参加者切断 → ルーム自動削除）
+    // 空ルームの場合は TTL 後に削除（猶予時間内の再接続を許容）
     if (roomEmpty) {
-        timerService.cancel(session.roomCode);
-        timerService.cancel(`host-transfer:${session.roomCode}`);
-        roomRepo.delete(session.roomCode);
-        quizRepo.delete(session.roomCode);
+        const emptyTimerKey = `empty-room:${session.roomCode}`;
+        timerService.schedule(emptyTimerKey, EMPTY_ROOM_TTL_MS, () => {
+            const currentRoom = roomRepo.findByCode(session.roomCode);
+            if (!currentRoom) return;
+
+            const currentAgg = RoomAggregate.fromRoom(currentRoom);
+            // TTL 経過後も全員切断のままなら削除
+            if (!currentAgg.hasConnectedParticipants()) {
+                timerService.cancel(session.roomCode);
+                timerService.cancel(`host-transfer:${session.roomCode}`);
+                // 切断中参加者の個別タイマーもキャンセル
+                for (const p of currentRoom.participants.values()) {
+                    timerService.cancel(`disconnect:${session.roomCode}:${p.id}`);
+                }
+                roomRepo.delete(session.roomCode);
+                quizRepo.delete(session.roomCode);
+                logger.info(
+                    { roomCode: session.roomCode },
+                    "Room auto-deleted (empty room TTL expired)",
+                );
+                broadcastRoomList(io, roomRepo);
+            }
+        });
 
         logger.info(
-            { roomCode: session.roomCode, nickname: participant.nickname },
-            "Room auto-deleted (all participants disconnected)",
+            { roomCode: session.roomCode, nickname: participant.nickname, ttlMs: EMPTY_ROOM_TTL_MS },
+            "All participants disconnected — room scheduled for TTL deletion",
         );
 
         broadcastRoomList(io, roomRepo);
@@ -942,6 +1069,7 @@ function handleDisconnect(
 
         if (emptyAfterRemoval) {
             timerService.cancel(session.roomCode);
+            timerService.cancel(`empty-room:${session.roomCode}`);
             roomRepo.delete(session.roomCode);
             quizRepo.delete(session.roomCode);
             logger.info(
@@ -1028,6 +1156,7 @@ function handleExplicitLeave(
     if (roomEmpty) {
         timerService.cancel(session.roomCode);
         timerService.cancel(`host-transfer:${session.roomCode}`);
+        timerService.cancel(`empty-room:${session.roomCode}`);
         roomRepo.delete(session.roomCode);
         quizRepo.delete(session.roomCode);
 

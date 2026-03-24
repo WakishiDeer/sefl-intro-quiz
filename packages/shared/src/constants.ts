@@ -35,6 +35,12 @@ export const ROOM_CLEANUP_INTERVAL_MS = 60 * 1000; // 60秒
  */
 export const DISCONNECT_REMOVE_TIMEOUT_MS = 5 * 60 * 1000; // 5分
 
+/**
+ * 全参加者が切断した空ルームを自動削除するまでの猶予時間。
+ * この間に誰かが再接続すればルームは維持される。
+ */
+export const EMPTY_ROOM_TTL_MS = 2 * 60 * 1000; // 2分
+
 // ============================================================
 // Quiz 関連
 // ============================================================
@@ -144,6 +150,9 @@ export const MIN_NICKNAME_LENGTH = 2;
 
 /** ニックネームの最大文字数 */
 export const MAX_NICKNAME_LENGTH = 12;
+
+/** ルーム名の最大文字数 */
+export const MAX_ROOM_NAME_LENGTH = 30;
 
 // ============================================================
 // AI 関連
@@ -342,6 +351,12 @@ export const THEME_REACTIONS: Record<string, readonly ReactionDefinition[]> = {
         { id: "theme-party-dance", type: "emoji", display: "💃", label: "ダンス" },
         { id: "theme-party-kanpai", type: "text", display: "カンパーイ!", label: "乾杯" },
         { id: "theme-party-yeay", type: "text", display: "イェーイ!", label: "盛り上がり" },
+        { id: "theme-party-vibes", type: "text", display: "バイブス上げてこ🔥", label: "バイブス" },
+        { id: "theme-party-letsgoo", type: "text", display: "レッツゴー!!", label: "レッツゴー" },
+        { id: "theme-party-agaruuu", type: "text", display: "アガるぅぅ↑↑", label: "上がる" },
+        { id: "theme-party-mirror", type: "emoji", display: "🪩", label: "ミラーボール" },
+        { id: "theme-party-mic", type: "emoji", display: "🎤", label: "マイク" },
+        { id: "theme-party-dj", type: "text", display: "Hey DJ 🎧", label: "DJ" },
     ],
     sakura: [
         { id: "theme-sakura-blossom", type: "emoji", display: "🌸", label: "桜" },

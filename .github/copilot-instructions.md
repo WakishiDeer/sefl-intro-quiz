@@ -249,7 +249,7 @@ lobby → generating → playing ⇄ revealing ⇄ interviewing → finished
 
 ## Socket.IO イベント
 
-- Client→Server: 9 イベント（`room:create`, `room:join`, `room:leave`, `profile:submit`, `quiz:generate`, `quiz:next-question`, `quiz:vote-curious`, `question:answer`, `room:close`）
+- Client→Server: 10 イベント（`room:create`, `room:join`, `room:leave`, `room:kick`, `profile:submit`, `quiz:generate`, `quiz:next-question`, `quiz:vote-curious`, `question:answer`, `room:close`）
 - Server→Client: 16+ イベント
 - 詳細は `docs/api-events.md` を参照
 

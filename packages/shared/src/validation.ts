@@ -10,6 +10,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import {
     MIN_NICKNAME_LENGTH,
     MAX_NICKNAME_LENGTH,
+    MAX_ROOM_NAME_LENGTH,
     MAX_PROFILE_FIELD_LENGTH,
     MIN_PROFILE_FILLED_FIELDS,
     ROOM_CODE_LENGTH,
@@ -187,6 +188,11 @@ export const SetThemeSchema = z.object({
     theme: z.enum(ANIMATION_THEMES as unknown as [string, ...string[]]),
 });
 
+/** room:set-name ペイロード（ホストがルーム名を変更） */
+export const SetRoomNameSchema = z.object({
+    roomName: z.string().max(MAX_ROOM_NAME_LENGTH, `ルーム名は${MAX_ROOM_NAME_LENGTH}文字以下`),
+});
+
 // ============================================================
 // AI リクエスト バリデーション
 // ============================================================
@@ -230,6 +236,15 @@ export const SendReactionSchema = z.object({
         .string()
         .min(1, "リアクション ID は必須です")
         .max(REACTION_ID_MAX_LENGTH, `リアクション ID は${REACTION_ID_MAX_LENGTH}文字以下`),
+});
+
+// ============================================================
+// 参加者キック バリデーション
+// ============================================================
+
+/** room:kick ペイロード */
+export const KickParticipantSchema = z.object({
+    targetParticipantId: z.string().uuid("対象の参加者 ID が不正です"),
 });
 
 // ============================================================

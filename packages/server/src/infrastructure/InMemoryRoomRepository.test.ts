@@ -10,12 +10,14 @@ import { DEFAULT_PROFILE_FIELDS } from "@self-intro-quiz/shared";
 function makeRoom(code: string): Room {
     return {
         code,
+        roomName: "",
         hostId: "host-1",
         phase: "lobby",
         participants: new Map(),
         createdAt: Date.now(),
         lastActivityAt: Date.now(),
         profileFields: [...DEFAULT_PROFILE_FIELDS],
+        animationTheme: "subtle",
     };
 }
 

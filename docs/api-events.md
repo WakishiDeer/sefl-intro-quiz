@@ -20,6 +20,7 @@
 | `question:answer` | Participant | `{ questionIndex: number, choiceIndex: number }` | 回答送信 |
 | `quiz:vote-curious` | Participant | `{ questionIndex: number }` | 「気になる」投票（revealing フェーズのみ） |
 | `room:close` | Host | `{}` | ルームを閉じる |
+| `room:kick` | Host | `{ targetParticipantId: string }` | 参加者をキック（除外） |
 | `room:back-to-lobby` | Host | `{}` | クイズ終了後にロビーに戻る |
 | `room:list-subscribe` | Any | `{}` | ルーム一覧のリアルタイム購読開始 |
 | `room:list-unsubscribe` | Any | `{}` | ルーム一覧の購読解除 |
@@ -35,6 +36,7 @@
 | `room:participant-left` | Room | `{ nickname: string, participantCount: number }` | 参加者退出通知 |
 | `room:state-sync` | Sender | `RoomStateSync` | 途中参加者への全状態同期 |
 | `room:closed` | Room | `{}` | ルーム閉鎖通知 |
+| `room:participant-kicked` | Sender | `{ nickname: string }` | キックされた参加者への通知 |
 | `room:back-to-lobby` | Room | `RoomStateSync` | ロビー復帰通知（各参加者に個別送信） |
 | `room:error` | Sender | `{ code: string, message: string }` | エラー通知 |
 | `profile:updated` | Room | `{ nickname: string, hasProfile: boolean }` | プロフィール更新通知 |

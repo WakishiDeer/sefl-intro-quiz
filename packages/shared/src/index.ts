@@ -69,6 +69,10 @@ export type {
     ReactionDefinition,
     SendReactionPayload,
     ReactionReceivedPayload,
+    KickParticipantPayload,
+    ParticipantKickedPayload,
+    SetRoomNamePayload,
+    RoomNameChangedPayload,
 } from "./types/index.js";
 
 // 定数
@@ -111,6 +115,7 @@ export {
     RATE_LIMIT_HTTP_PER_MIN,
     RATE_LIMIT_WINDOW_MS,
     DISCONNECT_REMOVE_TIMEOUT_MS,
+    EMPTY_ROOM_TTL_MS,
     AI_REQUEST_PRESETS,
     AI_REQUEST_DISPLAY_COUNT,
     AI_REQUEST_MAX_FREE_TEXT,
@@ -129,6 +134,7 @@ export {
     DEFAULT_TEXT_REACTIONS,
     THEME_REACTIONS,
     REACTION_ID_MAX_LENGTH,
+    MAX_ROOM_NAME_LENGTH,
 } from "./constants.js";
 
 // プロフィール項目プリセット
@@ -169,6 +175,8 @@ export {
     AIRequestAdoptSchema,
     SendInviteSchema,
     SendReactionSchema,
+    KickParticipantSchema,
+    SetRoomNameSchema,
 } from "./validation.js";
 export type {
     NicknameInput,

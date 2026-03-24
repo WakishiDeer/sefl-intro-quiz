@@ -30,6 +30,8 @@ import type {
     AIRequestCancelledPayload,
     InvitationReceivedPayload,
     ReactionReceivedPayload,
+    ParticipantKickedPayload,
+    RoomNameChangedPayload,
 } from "@self-intro-quiz/shared";
 import { useRoomStore } from "../stores/useRoomStore.js";
 import { useQuizStore } from "../stores/useQuizStore.js";
@@ -167,6 +169,7 @@ export function useSocket(): void {
             // 既存の参加者リストに追加（簡易版）
             if (!updated.some((p) => p.nickname === payload.nickname)) {
                 updated.push({
+                    participantId: "",
                     nickname: payload.nickname,
                     score: 0,
                     answeredCount: 0,
@@ -234,6 +237,14 @@ export function useSocket(): void {
             navigate("/");
         };
 
+        const onParticipantKicked = (_payload: ParticipantKickedPayload) => {
+            clearSession();
+            useRoomStore.getState().reset();
+            useQuizStore.getState().reset();
+            useToastStore.getState().showToast("ホストによりルームから除外されました");
+            navigate("/");
+        };
+
         // フィールド更新イベント
         const onFieldsUpdated = (payload: FieldsUpdatedPayload) => {
             useRoomStore.getState().setProfileFields(
@@ -274,6 +285,11 @@ export function useSocket(): void {
         // アニメーションテーマ変更
         const onThemeChanged = (payload: { theme: string }) => {
             useRoomStore.getState().setAnimationTheme(payload.theme as import("@self-intro-quiz/shared").AnimationThemeName);
+        };
+
+        // ルーム名変更
+        const onRoomNameChanged = (payload: RoomNameChangedPayload) => {
+            useRoomStore.getState().setRoomName(payload.roomName);
         };
 
         // ルーム招待受信
@@ -371,6 +387,7 @@ export function useSocket(): void {
         socket.on(S2C_EVENTS.PROFILE_UPDATED, onProfileUpdated);
         socket.on(S2C_EVENTS.FIELDS_UPDATED, onFieldsUpdated);
         socket.on(S2C_EVENTS.ROOM_CLOSED, onRoomClosed);
+        socket.on(S2C_EVENTS.ROOM_PARTICIPANT_KICKED, onParticipantKicked);
         socket.on(S2C_EVENTS.ROOM_BACK_TO_LOBBY, onBackToLobby);
         socket.on(S2C_EVENTS.AI_REQUEST_STARTED, onAIRequestStarted);
         socket.on(S2C_EVENTS.AI_REQUEST_STATUS, onAIRequestStatus);
@@ -378,6 +395,7 @@ export function useSocket(): void {
         socket.on(S2C_EVENTS.AI_REQUEST_CANCELLED, onAIRequestCancelled);
         socket.on(S2C_EVENTS.AI_REQUEST_GENERATING, onAIRequestGenerating);
         socket.on(S2C_EVENTS.ROOM_THEME_CHANGED, onThemeChanged);
+        socket.on(S2C_EVENTS.ROOM_NAME_CHANGED, onRoomNameChanged);
         socket.on(S2C_EVENTS.ROOM_INVITATION, onInvitationReceived);
         socket.on(S2C_EVENTS.REACTION_RECEIVED, onReactionReceived);
         socket.on(S2C_EVENTS.QUIZ_GENERATING, onQuizGenerating);
@@ -402,6 +420,7 @@ export function useSocket(): void {
             socket.off(S2C_EVENTS.PROFILE_UPDATED, onProfileUpdated);
             socket.off(S2C_EVENTS.FIELDS_UPDATED, onFieldsUpdated);
             socket.off(S2C_EVENTS.ROOM_CLOSED, onRoomClosed);
+            socket.off(S2C_EVENTS.ROOM_PARTICIPANT_KICKED, onParticipantKicked);
             socket.off(S2C_EVENTS.ROOM_BACK_TO_LOBBY, onBackToLobby);
             socket.off(S2C_EVENTS.AI_REQUEST_STARTED, onAIRequestStarted);
             socket.off(S2C_EVENTS.AI_REQUEST_STATUS, onAIRequestStatus);
@@ -409,6 +428,7 @@ export function useSocket(): void {
             socket.off(S2C_EVENTS.AI_REQUEST_CANCELLED, onAIRequestCancelled);
             socket.off(S2C_EVENTS.AI_REQUEST_GENERATING, onAIRequestGenerating);
             socket.off(S2C_EVENTS.ROOM_THEME_CHANGED, onThemeChanged);
+            socket.off(S2C_EVENTS.ROOM_NAME_CHANGED, onRoomNameChanged);
             socket.off(S2C_EVENTS.ROOM_INVITATION, onInvitationReceived);
             socket.off(S2C_EVENTS.REACTION_RECEIVED, onReactionReceived);
             socket.off(S2C_EVENTS.QUIZ_GENERATING, onQuizGenerating);

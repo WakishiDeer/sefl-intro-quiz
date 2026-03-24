@@ -76,6 +76,8 @@ import type { Profile, ProfileFieldDefinition } from "./profile.js";
 export interface Room {
     /** 英数大文字6文字のルームコード */
     code: string;
+    /** ホストが設定したルーム名（空文字 = 未設定） */
+    roomName: string;
     /** Host の participantId */
     hostId: string;
     /** 現在のフェーズ */

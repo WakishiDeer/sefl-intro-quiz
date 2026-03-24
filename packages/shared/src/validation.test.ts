@@ -22,6 +22,7 @@ import {
     SetThemeSchema,
     SendInviteSchema,
     SendReactionSchema,
+    KickParticipantSchema,
 } from "./validation.js";
 import { DEFAULT_PROFILE_FIELDS, MAX_PROFILE_FIELDS, INVITE_MAX_MESSAGE_LENGTH, REACTION_ID_MAX_LENGTH } from "./constants.js";
 import type { ProfileFieldDefinition } from "./types/profile.js";
@@ -707,6 +708,31 @@ describe("SendReactionSchema", () => {
 
     it("reactionId フィールドが欠けている場合拒否する", () => {
         const result = SendReactionSchema.safeParse({});
+        expect(result.success).toBe(false);
+    });
+});
+
+// ============================================================
+// KickParticipantSchema
+// ============================================================
+
+describe("KickParticipantSchema", () => {
+    it("有効な UUID を受け入れる", () => {
+        const result = KickParticipantSchema.safeParse({
+            targetParticipantId: "550e8400-e29b-41d4-a716-446655440000",
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("UUID でない文字列を拒否する", () => {
+        const result = KickParticipantSchema.safeParse({
+            targetParticipantId: "not-a-uuid",
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it("targetParticipantId フィールドが欠けている場合拒否する", () => {
+        const result = KickParticipantSchema.safeParse({});
         expect(result.success).toBe(false);
     });
 });

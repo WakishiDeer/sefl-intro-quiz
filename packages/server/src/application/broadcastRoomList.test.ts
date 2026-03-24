@@ -55,12 +55,14 @@ function makeRoom(
 
     return {
         code,
+        roomName: "",
         hostId: participants.find((p) => p.isHost)?.id ?? "",
         phase,
         participants: participantMap,
         createdAt: Date.now(),
         lastActivityAt: Date.now(),
         profileFields: [],
+        animationTheme: "subtle",
     };
 }
 
