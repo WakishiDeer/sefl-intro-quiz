@@ -16,9 +16,15 @@ import {
     UpdateFieldsSchema,
     SetThemeSchema,
     SendInviteSchema,
+    SendReactionSchema,
     MAX_PARTICIPANTS,
     DISCONNECT_REMOVE_TIMEOUT_MS,
     INVITE_COOLDOWN_MS,
+    REACTION_RATE_LIMIT,
+    REACTION_RATE_WINDOW_MS,
+    DEFAULT_EMOJI_REACTIONS,
+    DEFAULT_TEXT_REACTIONS,
+    THEME_REACTIONS,
     createProfileSchema,
 } from "@self-intro-quiz/shared";
 import type {
@@ -38,6 +44,8 @@ import type {
     RoomListPayload,
     AnimationThemeName,
     InvitationReceivedPayload,
+    ReactionReceivedPayload,
+    ReactionDefinition,
 } from "@self-intro-quiz/shared";
 import { RoomAggregate, RoomDomainError } from "../domain/room/RoomAggregate.js";
 import type { RoomRepository } from "../domain/room/RoomRepository.js";
@@ -71,6 +79,25 @@ const ROOM_LIST_META_ROOM = "__room_list__";
 // 招待クールダウン管理（participantId → 最終送信時刻）
 // ============================================================
 const inviteCooldowns = new Map<string, number>();
+
+// ============================================================
+// リアクション レートリミット管理（participantId → 送信タイムスタンプ配列）
+// ============================================================
+const reactionTimestamps = new Map<string, number[]>();
+
+/**
+ * 全リアクション定義の ID → 定義のルックアップマップ。
+ * デフォルト（絵文字 + テキスト）と全テーマ固有リアクションを含む。
+ */
+const reactionLookup: ReadonlyMap<string, ReactionDefinition> = (() => {
+    const map = new Map<string, ReactionDefinition>();
+    for (const r of DEFAULT_EMOJI_REACTIONS) map.set(r.id, r);
+    for (const r of DEFAULT_TEXT_REACTIONS) map.set(r.id, r);
+    for (const reactions of Object.values(THEME_REACTIONS)) {
+        for (const r of reactions) map.set(r.id, r);
+    }
+    return map;
+})();
 
 // ============================================================
 // Helper: ルーム一覧ブロードキャスト
@@ -747,6 +774,60 @@ export function registerRoomHandlers(
                 { roomCode: session.roomCode, message },
                 "Room invitation sent",
             );
+        } catch (error) {
+            emitError(socket, error);
+        }
+    });
+
+    // ----------------------------------------------------------
+    // reaction:send——リアクション送信（スライディングウィンドウ レートリミット）
+    // ----------------------------------------------------------
+    socket.on(C2S_EVENTS.REACTION_SEND, (payload: unknown) => {
+        try {
+            const parsed = SendReactionSchema.parse(payload);
+            const session = socketSessions.get(socket.id);
+            if (!session) return;
+
+            const room = roomRepo.findByCode(session.roomCode);
+            if (!room) return;
+
+            const roomAgg = RoomAggregate.fromRoom(room);
+            const participant = roomAgg.getParticipant(session.participantId);
+            if (!participant) return;
+
+            // リアクション ID の存在チェック
+            const reaction = reactionLookup.get(parsed.reactionId);
+            if (!reaction) {
+                socket.emit(S2C_EVENTS.ROOM_ERROR, {
+                    code: "INVALID_REACTION",
+                    message: "不明なリアクション ID です",
+                } satisfies RoomErrorPayload);
+                return;
+            }
+
+            // スライディングウィンドウ レートリミット
+            const now = Date.now();
+            const timestamps = reactionTimestamps.get(session.participantId) ?? [];
+            const windowStart = now - REACTION_RATE_WINDOW_MS;
+            const recent = timestamps.filter((t) => t > windowStart);
+
+            if (recent.length >= REACTION_RATE_LIMIT) {
+                // レートリミット超過 — サイレントドロップ（エラー通知不要）
+                return;
+            }
+
+            recent.push(now);
+            reactionTimestamps.set(session.participantId, recent);
+
+            // ルーム内の全クライアントにブロードキャスト（送信者含む）
+            const received: ReactionReceivedPayload = {
+                reactionId: reaction.id,
+                senderNickname: participant.nickname,
+                display: reaction.display,
+                type: reaction.type,
+                ...(reaction.mono ? { mono: true } : {}),
+            };
+            io.to(session.roomCode).emit(S2C_EVENTS.REACTION_RECEIVED, received);
         } catch (error) {
             emitError(socket, error);
         }
