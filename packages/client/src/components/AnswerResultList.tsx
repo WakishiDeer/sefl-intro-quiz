@@ -7,6 +7,7 @@
 
 import { motion } from "framer-motion";
 import type { ParticipantAnswerResult } from "@self-intro-quiz/shared";
+import { STREAK_MULTIPLIERS } from "@self-intro-quiz/shared";
 import { useAnimationTheme } from "../animations/useAnimationTheme.js";
 import type { ThemeColors } from "../animations/types.js";
 
@@ -41,6 +42,16 @@ export function AnswerResultList({ results, compact = false }: Props) {
                 >
                     <span>{getIcon(r)}</span>
                     <span>{r.nickname}</span>
+                    {r.isCorrect && r.earnedScore > 0 && (
+                        <span className="font-mono opacity-80">
+                            +{r.earnedScore}
+                            {r.streakCount >= 2 && (
+                                <span className="ml-0.5 text-[10px]">
+                                    🔥x{getStreakMultiplier(r.streakCount)}
+                                </span>
+                            )}
+                        </span>
+                    )}
                 </motion.span>
             ))}
         </div>
@@ -59,4 +70,11 @@ function getStyle(r: ParticipantAnswerResult, colors: ThemeColors): string {
     if (r.isTimeout) return colors.badgeWarning;
     if (r.isCorrect) return colors.badgeSuccess;
     return colors.badgeError;
+}
+
+function getStreakMultiplier(streakCount: number): string {
+    if (streakCount >= STREAK_MULTIPLIERS.length) {
+        return STREAK_MULTIPLIERS[STREAK_MULTIPLIERS.length - 1]!.toFixed(1);
+    }
+    return (STREAK_MULTIPLIERS[streakCount] ?? 1.0).toFixed(1);
 }

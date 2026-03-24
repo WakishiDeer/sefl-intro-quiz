@@ -18,7 +18,9 @@ import type {
     QuestionResultSummary,
 } from "@self-intro-quiz/shared";
 import {
-    SCORE_PER_CORRECT,
+    BASE_CORRECT_SCORE,
+    MAX_SPEED_BONUS,
+    STREAK_MULTIPLIERS,
     CURIOUS_VOTE_THRESHOLD,
 } from "@self-intro-quiz/shared";
 
@@ -61,6 +63,7 @@ export class QuizAggregate {
             questions,
             currentQuestionIndex: -1,
             timerEndsAt: null,
+            questionStartedAt: null,
             answers: new Map(),
             curiousVotes: new Map(),
         };
@@ -88,6 +91,7 @@ export class QuizAggregate {
     start(timerEndsAt: number, totalParticipants: number): QuestionStartPayload {
         this.quiz.currentQuestionIndex = 0;
         this.quiz.timerEndsAt = timerEndsAt;
+        this.quiz.questionStartedAt = Date.now();
 
         const question = this.quiz.questions[0];
         if (!question) {
@@ -119,6 +123,7 @@ export class QuizAggregate {
 
         this.quiz.currentQuestionIndex = nextIndex;
         this.quiz.timerEndsAt = timerEndsAt;
+        this.quiz.questionStartedAt = Date.now();
 
         const question = this.quiz.questions[nextIndex];
         if (!question) {
@@ -157,12 +162,31 @@ export class QuizAggregate {
             throw new QuizDomainError("ALREADY_ANSWERED", "この問題には既に回答済みです");
         }
 
+        const now = Date.now();
+        const isCorrect = choiceIndex === question.correctIndex;
+
+        // 残り時間を計算（スピードボーナス用）
+        const remainingMs = this.quiz.timerEndsAt
+            ? Math.max(0, this.quiz.timerEndsAt - now)
+            : 0;
+
+        // 連続正解数を計算
+        const streakCount = isCorrect ? this.computeCurrentStreak(existingAnswers) + 1 : 0;
+
+        // スコア計算: 正解時のみポイント付与
+        const earnedScore = isCorrect
+            ? this.calculateScore(remainingMs, streakCount)
+            : 0;
+
         const answer: Answer = {
             participantId,
             questionIndex: currentIndex,
             choiceIndex,
-            isCorrect: choiceIndex === question.correctIndex,
-            answeredAt: Date.now(),
+            isCorrect,
+            answeredAt: now,
+            earnedScore,
+            remainingMs,
+            streakCount,
         };
 
         if (!this.quiz.answers.has(participantId)) {
@@ -223,6 +247,9 @@ export class QuizAggregate {
                     choiceIndex: -1,
                     isCorrect: false,
                     answeredAt: Date.now(),
+                    earnedScore: 0,
+                    remainingMs: 0,
+                    streakCount: 0,
                 };
 
                 if (!this.quiz.answers.has(participantId)) {
@@ -278,14 +305,21 @@ export class QuizAggregate {
                     ? this.quiz.currentQuestionIndex + 1
                     : Math.max(0, this.quiz.currentQuestionIndex + 1 - participant.joinedAtQuestion);
 
+            // earnedScore の合計がスコア（スピードボーナス + ストリーク倍率込み）
+            const score = answers.reduce((sum, a) => sum + a.earnedScore, 0);
+
+            // 最長連続正解数
+            const maxStreak = this.computeMaxStreak(answers);
+
             entries.push({
                 nickname: participant.nickname,
-                score: correctCount * SCORE_PER_CORRECT,
+                score,
                 correctCount,
                 answeredCount,
                 totalQuestions,
                 isLateJoiner: participant.joinedAtQuestion > 0,
                 rank: 0, // 後で設定
+                maxStreak,
             });
         }
 
@@ -438,6 +472,8 @@ export class QuizAggregate {
                     isTimeout: false,
                     isIneligible: true,
                     choiceIndex: -1,
+                    earnedScore: 0,
+                    streakCount: 0,
                 });
                 continue;
             }
@@ -453,6 +489,8 @@ export class QuizAggregate {
                     isTimeout: false,
                     isIneligible: false,
                     choiceIndex: -1,
+                    earnedScore: 0,
+                    streakCount: 0,
                 });
                 continue;
             }
@@ -463,6 +501,8 @@ export class QuizAggregate {
                 isTimeout: answer.choiceIndex === -1,
                 isIneligible: false,
                 choiceIndex: answer.choiceIndex,
+                earnedScore: answer.earnedScore,
+                streakCount: answer.streakCount,
             });
         }
 
@@ -742,6 +782,85 @@ export class QuizAggregate {
         }
 
         return best;
+    }
+
+    // ----------------------------------------------------------
+    // スコア計算ヘルパー
+    // ----------------------------------------------------------
+
+    /**
+     * 1問分のスコアを計算する。
+     * スコア = floor((BASE_CORRECT_SCORE + speedBonus) × streakMultiplier)
+     */
+    private calculateScore(remainingMs: number, streakCount: number): number {
+        const timeLimit = this.getQuestionTimeLimit();
+        const speedRatio = timeLimit > 0 ? Math.min(1, remainingMs / timeLimit) : 0;
+        const baseWithSpeed = BASE_CORRECT_SCORE + MAX_SPEED_BONUS * speedRatio;
+        const multiplier = this.getStreakMultiplier(streakCount);
+        return Math.floor(baseWithSpeed * multiplier);
+    }
+
+    /**
+     * 現在の問題の制限時間（ms）を算出する。
+     * questionStartedAt と timerEndsAt の差から逆算する。
+     */
+    private getQuestionTimeLimit(): number {
+        if (this.quiz.questionStartedAt && this.quiz.timerEndsAt) {
+            return this.quiz.timerEndsAt - this.quiz.questionStartedAt;
+        }
+        return 0;
+    }
+
+    /**
+     * ストリーク倍率を返す。
+     * STREAK_MULTIPLIERS テーブルの範囲外（5連続以上）は最大倍率で固定。
+     */
+    private getStreakMultiplier(streakCount: number): number {
+        if (streakCount <= 0) return 1.0;
+        if (streakCount >= STREAK_MULTIPLIERS.length) {
+            return STREAK_MULTIPLIERS[STREAK_MULTIPLIERS.length - 1]!;
+        }
+        return STREAK_MULTIPLIERS[streakCount] ?? 1.0;
+    }
+
+    /**
+     * 既存の回答配列から、直近の連続正解数を計算する。
+     * 問題番号順にソートし、最新の連続正解を数える。
+     */
+    private computeCurrentStreak(existingAnswers: Answer[]): number {
+        if (existingAnswers.length === 0) return 0;
+
+        const sorted = [...existingAnswers].sort((a, b) => a.questionIndex - b.questionIndex);
+        let streak = 0;
+        // 末尾から逆順に連続正解を数える
+        for (let i = sorted.length - 1; i >= 0; i--) {
+            if (sorted[i]!.isCorrect) {
+                streak++;
+            } else {
+                break;
+            }
+        }
+        return streak;
+    }
+
+    /**
+     * 回答配列からの最長連続正解数を計算する。
+     */
+    private computeMaxStreak(answers: Answer[]): number {
+        if (answers.length === 0) return 0;
+
+        const sorted = [...answers].sort((a, b) => a.questionIndex - b.questionIndex);
+        let currentStreak = 0;
+        let maxStreak = 0;
+        for (const answer of sorted) {
+            if (answer.isCorrect) {
+                currentStreak++;
+                maxStreak = Math.max(maxStreak, currentStreak);
+            } else {
+                currentStreak = 0;
+            }
+        }
+        return maxStreak;
     }
 
     /** Quiz データのスナップショットを返す */

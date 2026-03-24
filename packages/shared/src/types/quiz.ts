@@ -49,6 +49,12 @@ export interface Answer {
     isCorrect: boolean;
     /** Unix timestamp (ms) */
     answeredAt: number;
+    /** この回答で獲得したスコア（スピードボーナス + ストリーク倍率適用済み） */
+    earnedScore: number;
+    /** 回答時の残り時間 (ms)。スピードボーナス計算の元データ */
+    remainingMs: number;
+    /** この回答時点での連続正解数（0 = 不正解/タイムアウト） */
+    streakCount: number;
 }
 
 // ============================================================
@@ -59,7 +65,7 @@ export interface Answer {
 export interface ScoreEntry {
     /** 参加者のニックネーム */
     nickname: string;
-    /** スコア（正解数 × 100） */
+    /** スコア（各問題の earnedScore の合計） */
     score: number;
     /** 正解数 */
     correctCount: number;
@@ -71,6 +77,8 @@ export interface ScoreEntry {
     isLateJoiner: boolean;
     /** 順位 */
     rank: number;
+    /** 最長連続正解数 */
+    maxStreak: number;
 }
 
 // ============================================================
@@ -107,6 +115,10 @@ export interface ParticipantAnswerResult {
     isIneligible: boolean;
     /** 選択した選択肢インデックス (-1 = タイムアウト or 不参加) */
     choiceIndex: number;
+    /** この問題で獲得したスコア */
+    earnedScore: number;
+    /** この問題時点での連続正解数 */
+    streakCount: number;
 }
 
 // ============================================================
@@ -147,6 +159,8 @@ export interface Quiz {
     currentQuestionIndex: number;
     /** タイマー終了時刻 Unix timestamp (ms)。null = タイマー未稼働 */
     timerEndsAt: number | null;
+    /** 現在の問題の出題開始時刻 Unix timestamp (ms)。スピードボーナス計算に使用 */
+    questionStartedAt: number | null;
     /** key = participantId, value = その参加者の全回答 */
     answers: Map<string, Answer[]>;
     /** key = questionIndex, value = 投票した participantId の Set */

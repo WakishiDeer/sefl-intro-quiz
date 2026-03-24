@@ -64,7 +64,26 @@ export const YES_NO_QUESTION_COUNT = 4;
 /** デフォルト10問中の4択問題数 */
 export const FOUR_CHOICE_QUESTION_COUNT = TOTAL_QUESTIONS - YES_NO_QUESTION_COUNT;
 
-/** 正解時のスコア */
+/** 正解時の基本スコア（最低保証ポイント） */
+export const BASE_CORRECT_SCORE = 100;
+
+/** スピードボーナスの最大値（残り時間100%で満額） */
+export const MAX_SPEED_BONUS = 900;
+
+/**
+ * 連続正解ストリーク倍率テーブル。
+ * index = 連続正解数。5連続以上は最大倍率 x2.0 で固定。
+ */
+export const STREAK_MULTIPLIERS: readonly number[] = [
+    1.0, // streak 0（未使用: 不正解/タイムアウト時は0点）
+    1.0, // streak 1: 初回正解
+    1.2, // streak 2: 2連続正解
+    1.5, // streak 3: 3連続正解
+    1.8, // streak 4: 4連続正解
+    2.0, // streak 5+: 5連続以上
+] as const;
+
+/** @deprecated BASE_CORRECT_SCORE + MAX_SPEED_BONUS に置き換え */
 export const SCORE_PER_CORRECT = 100;
 
 /** インタビュースピーチの制限時間 */

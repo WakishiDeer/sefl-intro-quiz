@@ -12,6 +12,7 @@ function makeQuiz(roomCode: string): Quiz {
         questions: [],
         currentQuestionIndex: -1,
         timerEndsAt: null,
+        questionStartedAt: null,
         answers: new Map(),
         curiousVotes: new Map(),
     };

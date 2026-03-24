@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { QuizAggregate, QuizDomainError } from "./QuizAggregate.js";
 import type { Question, Participant } from "@self-intro-quiz/shared";
-import { SCORE_PER_CORRECT, TOTAL_QUESTIONS } from "@self-intro-quiz/shared";
+import { SCORE_PER_CORRECT, TOTAL_QUESTIONS, BASE_CORRECT_SCORE, MAX_SPEED_BONUS } from "@self-intro-quiz/shared";
 
 // ============================================================
 // ヘルパー
@@ -221,12 +221,14 @@ describe("QuizAggregate", () => {
         it("スコアの降順でランキングされる", () => {
             const participants = makeParticipants();
             quiz.start(Date.now() + 30000, 3);
-            quiz.submitAnswer("participant-0", 0); // 正解 (100点)
+            quiz.submitAnswer("participant-0", 0); // 正解（スピードボーナス付き）
             quiz.submitAnswer("participant-1", 1); // 不正解 (0点)
-            quiz.submitAnswer("participant-2", 0); // 正解 (100点)
+            quiz.submitAnswer("participant-2", 0); // 正解（スピードボーナス付き）
 
             const scores = quiz.computeScoreboard(participants);
-            expect(scores[0]!.score).toBe(SCORE_PER_CORRECT);
+            // 正解者は BASE_CORRECT_SCORE 以上（スピードボーナスあり）
+            expect(scores[0]!.score).toBeGreaterThanOrEqual(BASE_CORRECT_SCORE);
+            expect(scores[0]!.score).toBeLessThanOrEqual(BASE_CORRECT_SCORE + MAX_SPEED_BONUS);
             expect(scores[0]!.rank).toBe(1);
             expect(scores[2]!.score).toBe(0);
         });
@@ -238,9 +240,140 @@ describe("QuizAggregate", () => {
             quiz.submitAnswer("participant-2", 0); // 正解
 
             const scores = quiz.computeScoreboard(participants);
-            const topScores = scores.filter((s) => s.score === SCORE_PER_CORRECT);
+            // 両者とも正解 → スコアが正の値
+            const topScores = scores.filter((s) => s.score > 0);
             expect(topScores.length).toBe(2);
             expect(topScores[0]!.rank).toBe(topScores[1]!.rank);
+        });
+
+        it("maxStreak がスコアボードに含まれる", () => {
+            const participants = makeParticipants();
+            quiz.start(Date.now() + 30000, 3);
+            quiz.submitAnswer("participant-0", 0); // 正解 streak=1
+            quiz.submitAnswer("participant-1", 1); // 不正解
+            quiz.submitAnswer("participant-2", 0); // 正解 streak=1
+
+            quiz.nextQuestion(Date.now() + 30000, 3);
+            quiz.submitAnswer("participant-0", 0); // 正解 streak=2
+            quiz.submitAnswer("participant-1", 0); // 正解 streak=1
+            quiz.submitAnswer("participant-2", 1); // 不正解
+
+            const scores = quiz.computeScoreboard(participants);
+            const p0 = scores.find((s) => s.nickname === "User0");
+            const p1 = scores.find((s) => s.nickname === "User1");
+            const p2 = scores.find((s) => s.nickname === "User2");
+            expect(p0!.maxStreak).toBe(2);
+            expect(p1!.maxStreak).toBe(1);
+            expect(p2!.maxStreak).toBe(1);
+        });
+    });
+
+    // ----------------------------------------------------------
+    // スピードボーナス & ストリーク
+    // ----------------------------------------------------------
+
+    describe("スピードボーナス & ストリーク倍率", () => {
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
+
+        it("早い回答ほど高いスコアを得る", () => {
+            const participants = makeParticipants();
+            const startTime = 1000000;
+
+            // 問題開始: startTime, timerEndsAt: startTime + 30000
+            vi.spyOn(Date, "now").mockReturnValue(startTime);
+            quiz.start(startTime + 30000, 3);
+
+            // participant-0: 1秒後に回答（残り29秒）
+            vi.spyOn(Date, "now").mockReturnValue(startTime + 1000);
+            const fastAnswer = quiz.submitAnswer("participant-0", 0);
+
+            // participant-1: 25秒後に回答（残り5秒）
+            vi.spyOn(Date, "now").mockReturnValue(startTime + 25000);
+            const slowAnswer = quiz.submitAnswer("participant-1", 0);
+
+            expect(fastAnswer.earnedScore).toBeGreaterThan(slowAnswer.earnedScore);
+            expect(fastAnswer.earnedScore).toBeGreaterThanOrEqual(BASE_CORRECT_SCORE);
+            expect(slowAnswer.earnedScore).toBeGreaterThanOrEqual(BASE_CORRECT_SCORE);
+        });
+
+        it("不正解時はスコア0", () => {
+            quiz.start(Date.now() + 30000, 3);
+            const answer = quiz.submitAnswer("participant-0", 1); // 不正解
+            expect(answer.earnedScore).toBe(0);
+            expect(answer.streakCount).toBe(0);
+        });
+
+        it("タイムアウト時はスコア0", () => {
+            quiz.start(Date.now() + 30000, 3);
+            quiz.recordTimeouts(["participant-0"]);
+            const scores = quiz.computeScoreboard(makeParticipants());
+            const p0 = scores.find((s) => s.nickname === "User0");
+            expect(p0!.score).toBe(0);
+        });
+
+        it("連続正解でストリーク倍率が増加する", () => {
+            const participants = makeParticipants();
+            const startTime = 1000000;
+
+            // 全問同じタイミングで回答して純粋にストリーク倍率の効果を確認
+            vi.spyOn(Date, "now").mockReturnValue(startTime);
+            quiz.start(startTime + 30000, 3);
+            // 15秒後に回答（ちょうど半分の残り時間）
+            vi.spyOn(Date, "now").mockReturnValue(startTime + 15000);
+            const answer1 = quiz.submitAnswer("participant-0", 0); // streak=1, x1.0
+
+            vi.spyOn(Date, "now").mockReturnValue(startTime + 30001);
+            quiz.nextQuestion(startTime + 30001 + 30000, 3);
+            vi.spyOn(Date, "now").mockReturnValue(startTime + 30001 + 15000);
+            const answer2 = quiz.submitAnswer("participant-0", 0); // streak=2, x1.2
+
+            vi.spyOn(Date, "now").mockReturnValue(startTime + 60002);
+            quiz.nextQuestion(startTime + 60002 + 30000, 3);
+            vi.spyOn(Date, "now").mockReturnValue(startTime + 60002 + 15000);
+            const answer3 = quiz.submitAnswer("participant-0", 0); // streak=3, x1.5
+
+            expect(answer1.streakCount).toBe(1);
+            expect(answer2.streakCount).toBe(2);
+            expect(answer3.streakCount).toBe(3);
+
+            // ストリーク倍率でスコアが増加（同じ速度なので差は倍率のみ）
+            expect(answer2.earnedScore).toBeGreaterThan(answer1.earnedScore);
+            expect(answer3.earnedScore).toBeGreaterThan(answer2.earnedScore);
+        });
+
+        it("不正解でストリークがリセットされる", () => {
+            quiz.start(Date.now() + 30000, 3);
+            quiz.submitAnswer("participant-0", 0); // 正解 streak=1
+            quiz.nextQuestion(Date.now() + 30000, 3);
+            quiz.submitAnswer("participant-0", 1); // 不正解 streak=0
+            quiz.nextQuestion(Date.now() + 30000, 3);
+            const answer = quiz.submitAnswer("participant-0", 0); // 正解 streak=1
+            expect(answer.streakCount).toBe(1);
+        });
+
+        it("earnedScore に残り時間とストリーク情報が記録される", () => {
+            quiz.start(Date.now() + 30000, 3);
+            const answer = quiz.submitAnswer("participant-0", 0);
+            expect(answer.remainingMs).toBeGreaterThanOrEqual(0);
+            expect(answer.streakCount).toBe(1);
+            expect(answer.earnedScore).toBeGreaterThanOrEqual(BASE_CORRECT_SCORE);
+        });
+
+        it("ParticipantAnswerResult に earnedScore と streakCount が含まれる", () => {
+            const participants = makeParticipants();
+            quiz.start(Date.now() + 30000, 3);
+            quiz.submitAnswer("participant-0", 0); // 正解
+            quiz.submitAnswer("participant-1", 1); // 不正解
+
+            const results = quiz.computeParticipantResults(0, participants);
+            const p0 = results.find((r) => r.nickname === "User0");
+            const p1 = results.find((r) => r.nickname === "User1");
+            expect(p0!.earnedScore).toBeGreaterThan(0);
+            expect(p0!.streakCount).toBe(1);
+            expect(p1!.earnedScore).toBe(0);
+            expect(p1!.streakCount).toBe(0);
         });
     });
 

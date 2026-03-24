@@ -28,6 +28,7 @@ export function Scoreboard({ scores, compact = false }: Props) {
             <th className="pb-2">名前</th>
             <th className="pb-2 text-right">スコア</th>
             {!compact && <th className="pb-2 text-right">正答率</th>}
+            {!compact && <th className="w-16 pb-2 text-right">🔥</th>}
           </tr>
         </thead>
         <AnimatePresence>
@@ -61,6 +62,11 @@ export function Scoreboard({ scores, compact = false }: Props) {
                     {entry.totalQuestions > 0
                       ? `${entry.correctCount}/${entry.totalQuestions}`
                       : "-"}
+                  </td>
+                )}
+                {!compact && (
+                  <td className={`py-2 text-right font-mono text-xs ${theme.colors.textSecondary}`}>
+                    {entry.maxStreak >= 2 ? `${entry.maxStreak}連` : "-"}
                   </td>
                 )}
               </motion.tr>
