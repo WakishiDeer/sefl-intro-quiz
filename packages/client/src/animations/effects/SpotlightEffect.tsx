@@ -123,7 +123,7 @@ export function SpotlightEffect({
 
     return (
         <div
-            className="pointer-events-none fixed inset-0 z-5 overflow-hidden"
+            className="pointer-events-none fixed inset-0 z-20 overflow-hidden"
             aria-hidden="true"
         >
             {/* 暗幕 — ぱっと暗転 */}

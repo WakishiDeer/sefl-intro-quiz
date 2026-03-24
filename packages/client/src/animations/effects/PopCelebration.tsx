@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 /** バーストパーティクルの色（ライム・スカイ・エメラルド・バイオレット・ローズ・イエロー） */
 const BURST_COLORS = [
@@ -218,11 +219,12 @@ export function PopCelebration() {
 
     if (!visible) return null;
 
-    return (
+    return createPortal(
         <canvas
             ref={canvasRef}
-            className="pointer-events-none fixed inset-0 z-10"
+            className="pointer-events-none fixed inset-0 z-[9999]"
             aria-hidden="true"
-        />
+        />,
+        document.body,
     );
 }

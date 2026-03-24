@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 /** グリッチバー1本分のデータ */
 interface GlitchBar {
@@ -71,8 +72,8 @@ export function CyberGlitch() {
 
     if (!visible) return null;
 
-    return (
-        <div className="pointer-events-none fixed inset-0 z-10 overflow-hidden" aria-hidden="true">
+    return createPortal(
+        <div className="pointer-events-none fixed inset-0 z-[9999] overflow-hidden" aria-hidden="true">
             {/* 全画面フラッシュ */}
             <div className="animate-cyber-flash absolute inset-0 bg-cyan-400/10" />
 
@@ -107,6 +108,7 @@ export function CyberGlitch() {
 
             {/* スキャンライン走査 */}
             <div className="animate-cyber-scanline absolute left-0 h-0.5 w-full bg-linear-to-r from-transparent via-cyan-400/60 to-transparent" />
-        </div>
+        </div>,
+        document.body,
     );
 }

@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 /** スパークル1個分のデータ */
 interface Spark {
@@ -38,8 +39,8 @@ export function Sparkles() {
 
     if (!visible) return null;
 
-    return (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+    return createPortal(
+        <div className="pointer-events-none fixed inset-0 z-[9999] overflow-hidden" aria-hidden="true">
             {sparks.map((s) => (
                 <span
                     key={s.id}
@@ -53,6 +54,7 @@ export function Sparkles() {
                     }}
                 />
             ))}
-        </div>
+        </div>,
+        document.body,
     );
 }
