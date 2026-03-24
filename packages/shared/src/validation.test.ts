@@ -21,8 +21,9 @@ import {
     createAIOutputSchema,
     SetThemeSchema,
     SendInviteSchema,
+    SendReactionSchema,
 } from "./validation.js";
-import { DEFAULT_PROFILE_FIELDS, MAX_PROFILE_FIELDS, INVITE_MAX_MESSAGE_LENGTH } from "./constants.js";
+import { DEFAULT_PROFILE_FIELDS, MAX_PROFILE_FIELDS, INVITE_MAX_MESSAGE_LENGTH, REACTION_ID_MAX_LENGTH } from "./constants.js";
 import type { ProfileFieldDefinition } from "./types/profile.js";
 
 // ============================================================
@@ -675,6 +676,37 @@ describe("SendInviteSchema", () => {
 
     it("message フィールドが欠けている場合拒否する", () => {
         const result = SendInviteSchema.safeParse({});
+        expect(result.success).toBe(false);
+    });
+});
+
+// ============================================================
+// SendReactionSchema
+// ============================================================
+
+describe("SendReactionSchema", () => {
+    it("有効なリアクション ID を受け付ける", () => {
+        const result = SendReactionSchema.safeParse({ reactionId: "emoji-clap" });
+        expect(result.success).toBe(true);
+    });
+
+    it("空文字列を拒否する", () => {
+        const result = SendReactionSchema.safeParse({ reactionId: "" });
+        expect(result.success).toBe(false);
+    });
+
+    it("最大長のリアクション ID を受け付ける", () => {
+        const result = SendReactionSchema.safeParse({ reactionId: "a".repeat(REACTION_ID_MAX_LENGTH) });
+        expect(result.success).toBe(true);
+    });
+
+    it("最大長を超えるリアクション ID を拒否する", () => {
+        const result = SendReactionSchema.safeParse({ reactionId: "a".repeat(REACTION_ID_MAX_LENGTH + 1) });
+        expect(result.success).toBe(false);
+    });
+
+    it("reactionId フィールドが欠けている場合拒否する", () => {
+        const result = SendReactionSchema.safeParse({});
         expect(result.success).toBe(false);
     });
 });

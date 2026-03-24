@@ -32,6 +32,7 @@ export const C2S_EVENTS = {
     AI_REQUEST_DISMISS: "ai-request:dismiss",
     ROOM_SET_THEME: "room:set-theme",
     ROOM_INVITE: "room:invite",
+    REACTION_SEND: "reaction:send",
 } as const;
 
 // ============================================================
@@ -66,6 +67,7 @@ export const S2C_EVENTS = {
     AI_REQUEST_GENERATING: "ai-request:generating",
     ROOM_THEME_CHANGED: "room:theme-changed",
     ROOM_INVITATION: "room:invitation",
+    REACTION_RECEIVED: "reaction:received",
 } as const;
 
 // ============================================================

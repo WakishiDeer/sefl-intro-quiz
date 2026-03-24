@@ -5,6 +5,13 @@
 export type { Profile, ProfileFieldDefinition, ProfileFieldPreset, ProfileFieldPresetId } from "./profile.js";
 
 export type {
+    ReactionType,
+    ReactionDefinition,
+    SendReactionPayload,
+    ReactionReceivedPayload,
+} from "./reaction.js";
+
+export type {
     RoomPhase,
     AnimationThemeName,
     Participant,

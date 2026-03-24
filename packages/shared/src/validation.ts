@@ -23,6 +23,7 @@ import {
     MIN_QUESTIONS,
     ANIMATION_THEMES,
     INVITE_MAX_MESSAGE_LENGTH,
+    REACTION_ID_MAX_LENGTH,
 } from "./constants.js";
 import type { ProfileFieldDefinition } from "./types/profile.js";
 
@@ -217,6 +218,18 @@ export const SendInviteSchema = z.object({
         .string()
         .min(1, "メッセージは必須です")
         .max(INVITE_MAX_MESSAGE_LENGTH, `メッセージは${INVITE_MAX_MESSAGE_LENGTH}文字以下`),
+});
+
+// ============================================================
+// リアクション バリデーション
+// ============================================================
+
+/** reaction:send ペイロード */
+export const SendReactionSchema = z.object({
+    reactionId: z
+        .string()
+        .min(1, "リアクション ID は必須です")
+        .max(REACTION_ID_MAX_LENGTH, `リアクション ID は${REACTION_ID_MAX_LENGTH}文字以下`),
 });
 
 // ============================================================

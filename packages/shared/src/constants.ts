@@ -4,6 +4,8 @@
  * マジックナンバーを排除し、名前付き定数で意図を表現する。
  */
 
+import type { ReactionDefinition } from "./types/reaction.js";
+
 // ============================================================
 // Room 関連
 // ============================================================
@@ -261,3 +263,97 @@ export const INVITE_COOLDOWN_MS = 60 * 1000; // 1分
 
 /** 招待バナーの自動消去時間（ms） */
 export const INVITE_BANNER_AUTO_DISMISS_MS = 15 * 1000; // 15秒
+
+// ============================================================
+// リアクション
+// ============================================================
+
+/** スライディングウィンドウ内の最大リアクション送信数 */
+export const REACTION_RATE_LIMIT = 5;
+
+/** リアクション レートリミットのウィンドウ幅（ms） */
+export const REACTION_RATE_WINDOW_MS = 3_000;
+
+/** リアクションパーティクルの表示時間（ms） */
+export const REACTION_PARTICLE_DURATION_MS = 2_500;
+
+/** 画面上の同時表示パーティクル最大数（超過分は古い順に破棄） */
+export const REACTION_MAX_VISIBLE = 30;
+
+/** デフォルト絵文字リアクション */
+export const DEFAULT_EMOJI_REACTIONS: readonly ReactionDefinition[] = [
+    { id: "emoji-clap", type: "emoji", display: "👏", label: "拍手" },
+    { id: "emoji-heart", type: "emoji", display: "❤️", label: "ハート" },
+    { id: "emoji-laugh", type: "emoji", display: "😂", label: "笑い" },
+    { id: "emoji-party", type: "emoji", display: "🎉", label: "パーティー" },
+    { id: "emoji-thumbsup", type: "emoji", display: "👍", label: "いいね" },
+    { id: "emoji-fire", type: "emoji", display: "🔥", label: "燃えてる" },
+    { id: "emoji-wow", type: "emoji", display: "😮", label: "おおっ" },
+    { id: "emoji-100", type: "emoji", display: "💯", label: "完璧" },
+    { id: "emoji-plus", type: "emoji", display: "➕", label: "プラス" },
+] as const;
+
+/** デフォルトテキストリアクション */
+export const DEFAULT_TEXT_REACTIONS: readonly ReactionDefinition[] = [
+    { id: "text-sugoi", type: "text", display: "すごい!", label: "すごい" },
+    { id: "text-naruhodo", type: "text", display: "なるほど〜", label: "なるほど" },
+    { id: "text-nice", type: "text", display: "ナイス!", label: "ナイス" },
+    { id: "text-ukeru", type: "text", display: "ウケる", label: "ウケる" },
+    { id: "text-wakaru", type: "text", display: "わかる〜", label: "わかる" },
+    { id: "text-doui", type: "text", display: "同意!", label: "同意" },
+] as const;
+
+/** テーマ固有リアクションのプリセット（テーマ名 → リアクション配列） */
+export const THEME_REACTIONS: Record<string, readonly ReactionDefinition[]> = {
+    subtle: [
+        { id: "theme-subtle-gem", type: "emoji", display: "💎", label: "宝石" },
+        { id: "theme-subtle-sparkle", type: "emoji", display: "✨", label: "キラキラ" },
+        { id: "theme-subtle-heart", type: "emoji", display: "🤍", label: "白いハート" },
+        { id: "theme-subtle-bubble", type: "emoji", display: "🫧", label: "シャボン玉" },
+        { id: "theme-subtle-music", type: "emoji", display: "🎶", label: "音符" },
+        { id: "theme-subtle-naruhodo", type: "text", display: "なるほど...", label: "深い納得" },
+        { id: "theme-subtle-beauty", type: "text", display: "美しい", label: "美" },
+    ],
+    fun: [
+        { id: "theme-fun-star", type: "emoji", display: "⭐", label: "スター" },
+        { id: "theme-fun-rocket", type: "emoji", display: "🚀", label: "ロケット" },
+        { id: "theme-fun-boom", type: "emoji", display: "💥", label: "爆発" },
+        { id: "theme-fun-trophy", type: "emoji", display: "🏆", label: "トロフィー" },
+        { id: "theme-fun-starstruck", type: "emoji", display: "🤩", label: "スターアイ" },
+        { id: "theme-fun-dondon", type: "text", display: "ドンドン!", label: "効果音" },
+        { id: "theme-fun-tensai", type: "text", display: "天才!", label: "称賛" },
+    ],
+    cyber: [
+        { id: "theme-cyber-ack", type: "text", display: "[ACK]", label: "了解", mono: true },
+        { id: "theme-cyber-nice", type: "text", display: "> NICE_", label: "ナイス", mono: true },
+        { id: "theme-cyber-gg", type: "text", display: "// GG", label: "グッドゲーム", mono: true },
+        { id: "theme-cyber-wow", type: "text", display: "$ sudo wow", label: "すごい", mono: true },
+        { id: "theme-cyber-lgtm", type: "text", display: "LGTM 👀", label: "Looks Good To Me", mono: true },
+        { id: "theme-cyber-teapot", type: "text", display: "418 I'm a teapot 🫖", label: "ティーポット", mono: true },
+        { id: "theme-cyber-ping", type: "text", display: "> ping OK", label: "応答あり", mono: true },
+        { id: "theme-cyber-rm", type: "text", display: "rm -rf doubt", label: "疑い消去", mono: true },
+        { id: "theme-cyber-200", type: "text", display: "HTTP 200 OK", label: "OK", mono: true },
+    ],
+    party: [
+        { id: "theme-party-confetti", type: "emoji", display: "🎊", label: "紙吹雪" },
+        { id: "theme-party-balloon", type: "emoji", display: "🎈", label: "風船" },
+        { id: "theme-party-face", type: "emoji", display: "🥳", label: "パーティー顔" },
+        { id: "theme-party-cheers", type: "emoji", display: "🍻", label: "乾杯" },
+        { id: "theme-party-dance", type: "emoji", display: "💃", label: "ダンス" },
+        { id: "theme-party-kanpai", type: "text", display: "カンパーイ!", label: "乾杯" },
+        { id: "theme-party-yeay", type: "text", display: "イェーイ!", label: "盛り上がり" },
+    ],
+    sakura: [
+        { id: "theme-sakura-blossom", type: "emoji", display: "🌸", label: "桜" },
+        { id: "theme-sakura-petal", type: "emoji", display: "🌷", label: "チューリップ" },
+        { id: "theme-sakura-dango", type: "emoji", display: "🍡", label: "お団子" },
+        { id: "theme-sakura-furin", type: "emoji", display: "🎐", label: "風鈴" },
+        { id: "theme-sakura-tea", type: "emoji", display: "🍵", label: "お茶" },
+        { id: "theme-sakura-wabi", type: "text", display: "わび〜", label: "侘び寂び" },
+        { id: "theme-sakura-furyu", type: "text", display: "風流〜", label: "風流" },
+        { id: "theme-sakura-matcha", type: "text", display: "🍵 抹茶どうぞ", label: "抹茶どうぞ" },
+    ],
+} as const;
+
+/** リアクション ID の最大長（バリデーション用） */
+export const REACTION_ID_MAX_LENGTH = 40;

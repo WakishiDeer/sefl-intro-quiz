@@ -65,6 +65,10 @@ export type {
     InvitationReceivedPayload,
     ProfileFieldPreset,
     ProfileFieldPresetId,
+    ReactionType,
+    ReactionDefinition,
+    SendReactionPayload,
+    ReactionReceivedPayload,
 } from "./types/index.js";
 
 // 定数
@@ -117,6 +121,14 @@ export {
     INVITE_MAX_MESSAGE_LENGTH,
     INVITE_COOLDOWN_MS,
     INVITE_BANNER_AUTO_DISMISS_MS,
+    REACTION_RATE_LIMIT,
+    REACTION_RATE_WINDOW_MS,
+    REACTION_PARTICLE_DURATION_MS,
+    REACTION_MAX_VISIBLE,
+    DEFAULT_EMOJI_REACTIONS,
+    DEFAULT_TEXT_REACTIONS,
+    THEME_REACTIONS,
+    REACTION_ID_MAX_LENGTH,
 } from "./constants.js";
 
 // プロフィール項目プリセット
@@ -156,6 +168,7 @@ export {
     AIRequestSubmitSchema,
     AIRequestAdoptSchema,
     SendInviteSchema,
+    SendReactionSchema,
 } from "./validation.js";
 export type {
     NicknameInput,
