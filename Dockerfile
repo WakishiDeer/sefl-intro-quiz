@@ -52,6 +52,9 @@ COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 COPY --from=builder /app/packages/client/dist ./packages/client/dist
 
+# HOW TO USE プレゼンテーション資料
+COPY docs/presentation/ ./docs/presentation/
+
 EXPOSE 3001
 
 CMD ["node", "packages/server/dist/index.js"]

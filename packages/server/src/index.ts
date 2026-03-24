@@ -123,6 +123,9 @@ const io = new Server(httpServer, {
 
 if (process.env["NODE_ENV"] === "production") {
   const clientDistPath = resolve(__dirname, "../../client/dist");
+  // HOW TO USE (presentation) を /howto で配信
+  const presentationPath = resolve(__dirname, "../../../docs/presentation");
+  app.use("/howto", express.static(presentationPath));
   app.use(express.static(clientDistPath));
   // SPA フォールバック: API・Socket.IO 以外のリクエストは index.html へ
   app.get("*", (_req, res) => {

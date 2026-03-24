@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/ja/).
 
 ## [Unreleased]
 
+### Added
+
+- **HOW TO USE プレゼンテーション**: アプリの使い方を紹介する HTML スライド資料を追加
+  - `docs/presentation/index.html` — 16スライド構成のインタラクティブなプレゼン
+  - 5テーマ（subtle / fun / cyber / party / sakura）のスクリーンショット付きショーケース
+  - 全画面フロー（トップ → ルーム作成 → ロビー → プロフィール → クイズ → 結果）のスクリーンショット
+  - キーボード（↑↓）・ナビドット・テーマタブ切り替え対応
+  - 本番環境で `/howto` パスからアクセス可能
+  - トップページに「HOW TO USE (v0.1.0)」リンクを追加
+
+- **参加者キック機能**: ホストがルーム内の参加者を除外（キック）できる機能を追加
+  - ホストは参加者一覧の各ユーザー横の ✕ ボタンで除外可能（自分自身は除外不可）
+  - 接続中・切断中どちらの参加者もキック対象
+  - キックされた参加者にはトースト通知とともにトップページへ遷移
+  - 新規 Socket.IO イベント: `room:kick` (C2S), `room:participant-kicked` (S2C)
+  - 新規ドメインメソッド: `RoomAggregate.kickParticipant()`
+  - バリデーション: `KickParticipantSchema`（UUID 検証）
+  - `ParticipantInfo` に `participantId` フィールドを追加（クライアントからの識別用）
+  - テスト: RoomAggregate（5テスト）、KickParticipantSchema（3テスト）を追加
+
+- **空ルーム自動削除 TTL**: 全参加者が切断した空ルームを一定時間（2分）後に自動削除
+  - 全員切断後も即時削除せず `EMPTY_ROOM_TTL_MS`（2分）の猶予を設ける
+  - 猶予時間内に誰かが再接続・新規参加すれば TTL タイマーはキャンセルされルーム維持
+  - TTL 経過後も全員切断のままの場合のみルームを削除
+  - 新規定数: `EMPTY_ROOM_TTL_MS`（2分）
+
+### Changed
+
+- **招待参加のニックネーム自動引き継ぎ**: 他ルームからの招待を受諾した際、現在のニックネームを自動で引き継いでそのまま参加するように改善。ニックネームが重複する場合のみ入力フォームが表示される
+
 ## [0.3.0] - 2026-03-24
 
 ### Added

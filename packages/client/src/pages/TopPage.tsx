@@ -52,6 +52,15 @@ export function TopPage() {
             ルームに参加する
           </Link>
         </div>
+
+        <div className="pt-2">
+          <a
+            href="/howto"
+            className="text-sm text-indigo-400 underline hover:text-indigo-600 transition"
+          >
+            📖 HOW TO USE (v0.1.0)
+          </a>
+        </div>
       </div>
     </div>
   );
